@@ -40,7 +40,7 @@ void Game::Initialize() {
     };
 
     std::vector<uint32_t> indices {
-        0, 1, 2,
+        0, 2, 1,
         1, 2, 3
     };
 
@@ -49,18 +49,26 @@ void Game::Initialize() {
 }
 
 void Game::Update(float deltatime) {
+    const float rotationSpeed = 40.0f;
+    float yRot = m_quadTransform.GetEulerRotation().y;
+    m_quadTransform.RotateEuler({
+        0.0f, yRot + (rotationSpeed * deltatime), 0.0f
+    });
 }
 
 void Game::Render() {
     glClearColor(m_clearColor.R, m_clearColor.G, m_clearColor.B, m_clearColor.A);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     m_basicShader->Bind();
+
     m_basicShader->SetMat4("uModel", m_quadTransform.GetModelMatrix());
     m_basicShader->SetMat4("uView", m_camera.GetView());
     m_basicShader->SetMat4("uProjection", m_camera.GetProjection(m_window.GetAspectRatio()));
+
+    m_basicShader->SetInt("uTexture", 0);
     m_texture->Bind();
-    m_quadMesh->Draw();
+        m_quadMesh->Draw();
     m_texture->Unbind();
 }
 

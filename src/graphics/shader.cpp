@@ -32,6 +32,10 @@ Shader::~Shader() { if (m_id) glDeleteProgram(m_id); }
 
 void Shader::Bind() const { glUseProgram(m_id); }
 
+void Shader::SetInt(const std::string& name, int value) {
+    glProgramUniform1i(m_id, getUniformLocation(name), value);
+}
+
 void Shader::SetMat4(const std::string& name, const glm::mat4& value) {
     glProgramUniformMatrix4fv(m_id, getUniformLocation(name), 1, GL_FALSE, glm::value_ptr(value));
 }

@@ -92,6 +92,11 @@ Window::Window(const WindowProperties& properties)
     glfwSetWindowUserPointer(m_window, this);
     glfwSetFramebufferSizeCallback(m_window, glfwFramebufferSizeCallback);
 
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
+
     glViewport(0, 0, static_cast<int>(m_properties.Width), static_cast<int>(m_properties.Height));
 
     stbi_set_flip_vertically_on_load(true);
