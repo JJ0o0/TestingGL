@@ -1,5 +1,6 @@
 #pragma once
 
+#include <graphics/image_data.hpp>
 #include <filesystem>
 #include <cstdint>
 
@@ -11,6 +12,7 @@ enum class TextureFormat {
 class Texture {
     public:
         Texture(const std::filesystem::path& path, TextureFormat format = TextureFormat::SRGBA8);
+        Texture(const ImageData& image, TextureFormat format = TextureFormat::SRGBA8);
         ~Texture();
 
         Texture(const Texture&) = delete;

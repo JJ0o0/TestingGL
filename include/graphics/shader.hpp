@@ -2,6 +2,7 @@
 
 #include <glad/gl.h>
 #include <glm/glm.hpp>
+#include <graphics/color.hpp>
 
 #include <filesystem>
 #include <cstdint>
@@ -15,6 +16,8 @@ class Shader {
 
         void SetInt(const std::string& name, int value);
         void SetMat4(const std::string& name, const glm::mat4& value);
+        void SetVec4(const std::string& name, const glm::vec4& value);
+        void SetColor(const std::string& name, const Color& value);
 
         bool UniformExists(const std::string& name) { return getUniformLocationSilent(name) != 1; }
     private:

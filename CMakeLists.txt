@@ -26,6 +26,7 @@ add_executable(${CMAKE_PROJECT_NAME}
     "src/graphics/texture.cpp"
 
     "src/platform/window.cpp"
+    "src/platform/default_resources.cpp"
 )
 
 add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD

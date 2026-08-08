@@ -36,6 +36,14 @@ void Shader::SetInt(const std::string& name, int value) {
     glProgramUniform1i(m_id, getUniformLocation(name), value);
 }
 
+void Shader::SetVec4(const std::string& name, const glm::vec4& value) {
+    glProgramUniform4fv(m_id, getUniformLocation(name), 1, glm::value_ptr(value));
+}
+
+void Shader::SetColor(const std::string& name, const Color& value) {
+    glProgramUniform4f(m_id, getUniformLocation(name), value.R, value.G, value.B, value.A);
+}
+
 void Shader::SetMat4(const std::string& name, const glm::mat4& value) {
     glProgramUniformMatrix4fv(m_id, getUniformLocation(name), 1, GL_FALSE, glm::value_ptr(value));
 }

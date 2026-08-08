@@ -1,6 +1,7 @@
 #include <core/application.hpp>
 #include <core/logging.hpp>
 #include <core/input.hpp>
+#include <platform/default_resources.hpp>
 
 #include <glad/gl.h>
 
@@ -9,6 +10,7 @@ int Application::Run() {
         m_window = std::make_unique<Window>();
 
         Input::Initialize(m_window->GetHandle());
+        DefaultResources::Initialize();
 
         m_game.emplace(*m_window);
         m_game->Initialize();
@@ -42,6 +44,8 @@ int Application::Run() {
 void Application::stop() {
     if (m_game.has_value()) m_game->Destroy();
 
+    DefaultResources::Shutdown();
     Input::Shutdown();
+
     m_window.reset();
 }

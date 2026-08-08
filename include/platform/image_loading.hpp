@@ -1,18 +1,11 @@
 #pragma once
 
 #include <core/error_handling.hpp>
+#include <graphics/image_data.hpp>
 #include <stb/stb_image.h>
 #include <filesystem>
 #include <cstdint>
-#include <vector>
 #include <memory>
-
-struct ImageData {
-    std::vector<uint8_t> Pixels;
-
-    uint32_t Width = 0;
-    uint32_t Height = 0;
-};
 
 inline ImageData LoadImage(const std::filesystem::path& path) {
     const std::string pathStr = path.string();

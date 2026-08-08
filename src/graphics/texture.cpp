@@ -5,9 +5,12 @@
 #include <glad/gl.h>
 #include <utility>
 
-Texture::Texture(const std::filesystem::path& path, TextureFormat format) {
-    ImageData image = LoadImage(path);
+Texture::Texture(const std::filesystem::path& path, TextureFormat format)
+    : Texture(LoadImage(path), format){
 
+}
+
+Texture::Texture(const ImageData& image, TextureFormat format) {
     glGenTextures(1, &m_id);
     glBindTexture(GL_TEXTURE_2D, m_id);
 
@@ -16,16 +19,16 @@ Texture::Texture(const std::filesystem::path& path, TextureFormat format) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    int targetFormat = GL_RGB;
+    int internalFormat = GL_RGB;
     switch (format) {
-        case TextureFormat::RGBA8: targetFormat = GL_RGBA8; break;
-        case TextureFormat::SRGBA8: targetFormat = GL_SRGB8_ALPHA8; break;
+        case TextureFormat::RGBA8: internalFormat = GL_RGBA8; break;
+        case TextureFormat::SRGBA8: internalFormat = GL_SRGB8_ALPHA8; break;
     }
 
     glTexImage2D(
         GL_TEXTURE_2D,
         0,
-        targetFormat,
+        internalFormat,
         image.Width, image.Height,
         0,
         GL_RGBA,

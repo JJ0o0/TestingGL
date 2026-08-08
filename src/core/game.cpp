@@ -19,8 +19,13 @@ void Game::Initialize() {
     LogInfo("GPU: {} - {}", vendor, renderer);
     LogInfo("OpenGL: {}", version);
 
-    m_basicShader = std::make_unique<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
-    m_texture = std::make_unique<Texture>("assets/textures/grid.png");
+    m_shader = std::make_shared<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
+    m_texture = std::make_shared<Texture>("assets/textures/grid.png");
+    m_material = std::make_shared<Material>(Material{
+        .Tint = Color{1.0f},
+        .MaterialShader = m_shader,
+        .Diffuse = m_texture
+    });
 
     std::vector<Vertex> vertices {
         Vertex {
@@ -65,20 +70,19 @@ void Game::Render() {
     glClearColor(m_clearColor.R, m_clearColor.G, m_clearColor.B, m_clearColor.A);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    m_basicShader->Bind();
+    m_shader->Bind();
 
-    m_basicShader->SetMat4("uModel", m_quadTransform.GetModelMatrix());
-    m_basicShader->SetMat4("uView", m_camera.GetView());
-    m_basicShader->SetMat4("uProjection", m_camera.GetProjection(m_window.GetAspectRatio()));
+    m_shader->SetMat4("uModel", m_quadTransform.GetModelMatrix());
+    m_shader->SetMat4("uView", m_camera.GetView());
+    m_shader->SetMat4("uProjection", m_camera.GetProjection(m_window.GetAspectRatio()));
 
-    m_basicShader->SetInt("uTexture", 0);
-    m_texture->Bind();
-        m_quadMesh->Draw();
-    m_texture->Unbind();
+    m_material->Apply();
+    m_quadMesh->Draw();
 }
 
 void Game::Destroy() {
     m_quadMesh.reset();
+    m_material.reset();
     m_texture.reset();
-    m_basicShader.reset();
+    m_shader.reset();
 }
