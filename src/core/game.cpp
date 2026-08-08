@@ -5,6 +5,7 @@
 
 #include <graphics/vertex.hpp>
 #include <graphics/color.hpp>
+#include <graphics/model_loader.hpp>
 #include <graphics/premade_meshes/cube.hpp>
 
 #include <glad/gl.h>
@@ -60,11 +61,14 @@ void Game::initResources() {
     auto material = std::make_shared<Material>(Material{
         .Tint = Color{1.0f},
         .MaterialShader = m_shader,
-        .Diffuse = std::make_shared<Texture>("assets/textures/crate_diffuse.png", TextureFormat::SRGBA8),
-        .Specular = std::make_shared<Texture>("assets/textures/crate_specular.png", TextureFormat::RGBA8)
+        .Diffuse = std::make_shared<Texture>("assets/textures/grid.png", TextureFormat::SRGBA8),
     });
 
-    m_model = Model::FromMesh(CreateCube(1.0f), material);
+    m_model = ModelLoader::Load("assets/models/suzanne.glb", material);
+    if (!m_model) {
+        LogError("Failed to load test model");
+        return;
+    }
 
     m_cube = std::make_unique<GameObject>(GameObject{
         .ObjectModel = m_model

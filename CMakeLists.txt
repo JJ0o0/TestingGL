@@ -10,6 +10,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(cmake/dependencies.cmake)
+include(cmake/asset_copy.cmake)
 
 add_executable(${CMAKE_PROJECT_NAME}
     "src/main.cpp"
@@ -24,16 +25,13 @@ add_executable(${CMAKE_PROJECT_NAME}
     "src/graphics/mesh.cpp"
     "src/graphics/shader.cpp"
     "src/graphics/texture.cpp"
+    "src/graphics/model_loader.cpp"
 
     "src/platform/window.cpp"
     "src/platform/default_resources.cpp"
 )
 
-add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_SOURCE_DIR}/assets"
-        "$<TARGET_FILE_DIR:TestingGL>/assets"
-)
+copy_assets(TestingGL)
 
 target_include_directories(${CMAKE_PROJECT_NAME}
     PRIVATE

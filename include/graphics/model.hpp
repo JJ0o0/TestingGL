@@ -24,6 +24,7 @@ struct ModelNode {
     std::vector<uint32_t> Children;
 };
 
+class ModelLoader;
 class Model {
     public:
         static std::shared_ptr<Model> FromMesh(std::shared_ptr<Mesh> mesh, std::shared_ptr<Material> material) {
@@ -55,6 +56,8 @@ class Model {
         const auto& GetNodes() const { return m_nodes; }
         const auto& GetRootNodes() const { return m_rootNodes; }
     private:
+        friend class ModelLoader;
+
         std::vector<ModelMesh> m_meshes;
         std::vector<std::shared_ptr<Material>> m_materials;
 
