@@ -18,7 +18,15 @@ add_executable(${CMAKE_PROJECT_NAME}
     "src/core/application.cpp"
     "src/core/game.cpp"
 
+    "src/graphics/shader.cpp"
+
     "src/platform/window.cpp"
+)
+
+add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/assets"
+        "$<TARGET_FILE_DIR:TestingGL>/assets"
 )
 
 target_include_directories(${CMAKE_PROJECT_NAME}

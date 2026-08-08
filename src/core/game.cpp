@@ -11,6 +11,8 @@ void Game::Initialize() {
 
     LogInfo("GPU: {} - {}", vendor, renderer);
     LogInfo("OpenGL: {}", version);
+
+    m_basicShader = std::make_unique<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
 }
 
 void Game::Update(float deltatime) {
@@ -23,5 +25,5 @@ void Game::Render() {
 }
 
 void Game::Destroy() {
-
+    m_basicShader.reset();
 }
