@@ -1,5 +1,6 @@
 #include <core/application.hpp>
 #include <core/logging.hpp>
+#include <core/input.hpp>
 
 #include <glad/gl.h>
 
@@ -7,12 +8,15 @@ int Application::Run() {
     try {
         m_window = std::make_unique<Window>();
 
+        Input::Initialize(m_window->GetHandle());
+
         m_game.emplace(*m_window);
         m_game->Initialize();
 
         float lastTime = glfwGetTime();
         float deltaTime = 0.0f;
         while (m_game->IsRunning() && !m_window->ShouldClose()) {
+            Input::BeginFrame();
             m_window->PollEvents();
 
             float currentTime = glfwGetTime();
@@ -37,5 +41,7 @@ int Application::Run() {
 
 void Application::stop() {
     if (m_game.has_value()) m_game->Destroy();
+
+    Input::Shutdown();
     m_window.reset();
 }

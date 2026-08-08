@@ -1,6 +1,8 @@
 #include <core/game.hpp>
 
 #include <core/logging.hpp>
+#include <core/input.hpp>
+
 #include <graphics/vertex.hpp>
 #include <graphics/color.hpp>
 
@@ -50,10 +52,13 @@ void Game::Initialize() {
 
 void Game::Update(float deltatime) {
     const float rotationSpeed = 40.0f;
-    float yRot = m_quadTransform.GetEulerRotation().y;
-    m_quadTransform.RotateEuler({
-        0.0f, yRot + (rotationSpeed * deltatime), 0.0f
-    });
+
+    if (Input::IsKeyDown(GLFW_KEY_SPACE)) {
+        float yRot = m_quadTransform.GetEulerRotation().y + (rotationSpeed * deltatime);
+        m_quadTransform.RotateEuler({
+            0.0f, yRot, 0.0f
+        });
+    }
 }
 
 void Game::Render() {

@@ -24,6 +24,9 @@ class Window {
 
         float GetAspectRatio() const { return static_cast<float>(m_properties.Width) / static_cast<float>(m_properties.Height); }
 
+        GLFWwindow* GetHandle() { return m_window; }
+        const GLFWwindow* GetHandle() const { return m_window; }
+
         const WindowProperties& GetProperties() const { return m_properties; }
     private:
         WindowProperties m_properties;

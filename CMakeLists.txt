@@ -18,6 +18,7 @@ add_executable(${CMAKE_PROJECT_NAME}
 
     "src/core/application.cpp"
     "src/core/game.cpp"
+    "src/core/input.cpp"
 
     "src/graphics/camera.cpp"
     "src/graphics/mesh.cpp"
@@ -36,6 +37,7 @@ add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
 target_include_directories(${CMAKE_PROJECT_NAME}
     PRIVATE
         "include/"
+        "external/"
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
