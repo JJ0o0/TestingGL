@@ -1,0 +1,40 @@
+#include <core/application.hpp>
+#include <core/logging.hpp>
+
+#include <glad/gl.h>
+
+int Application::Run() {
+    try {
+        m_window = std::make_unique<Window>();
+
+        m_game.Initialize();
+
+        float lastTime = glfwGetTime();
+        float deltaTime = 0.0f;
+        while (m_game.IsRunning() && !m_window->ShouldClose()) {
+            m_window->PollEvents();
+
+            float currentTime = glfwGetTime();
+            deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+
+            m_game.Update(deltaTime);
+            m_game.Render();
+
+            m_window->SwapBuffers();
+        }
+
+        stop();
+        return 0;
+    } catch (const std::exception& e) {
+        LogError("{}", e.what());
+
+        stop();
+        return 1;
+    }
+}
+
+void Application::stop() {
+    m_game.Destroy();
+    m_window.reset();
+}
