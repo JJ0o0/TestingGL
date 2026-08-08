@@ -30,6 +30,48 @@ void Game::Initialize() {
 }
 
 void Game::Update(float deltatime) {
+    updateCamera(deltatime);
+}
+
+void Game::Render() {
+    glClearColor(m_clearColor.R, m_clearColor.G, m_clearColor.B, m_clearColor.A);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    drawObject(*m_cube);
+}
+
+void Game::Destroy() {
+    m_cube.reset();
+    m_model.reset();
+    m_shader.reset();
+}
+
+void Game::showInfo() {
+    const char* vendor = (const char*)glGetString(GL_VENDOR);
+    const char* renderer = (const char*)glGetString(GL_RENDERER);
+    const char* version = (const char*)glGetString(GL_VERSION);
+
+    LogInfo("GPU: {} - {}", vendor, renderer);
+    LogInfo("OpenGL: {}", version);
+}
+
+void Game::initResources() {
+    m_shader = std::make_shared<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
+    auto material = std::make_shared<Material>(Material{
+        .Tint = Color{1.0f},
+        .MaterialShader = m_shader,
+        .Diffuse = std::make_shared<Texture>("assets/textures/crate_diffuse.png", TextureFormat::SRGBA8),
+        .Specular = std::make_shared<Texture>("assets/textures/crate_specular.png", TextureFormat::RGBA8)
+    });
+
+    m_model = Model::FromMesh(CreateCube(1.0f), material);
+
+    m_cube = std::make_unique<GameObject>(GameObject{
+        .ObjectModel = m_model
+    });
+}
+
+void Game::updateCamera(float deltatime) {
     const glm::vec2 mouseDelta = Input::GetMouseDelta();
     const float sensitivity = 0.3f;
 
@@ -74,54 +116,46 @@ void Game::Update(float deltatime) {
     m_camera.LookAt(target);
 }
 
-void Game::Render() {
-    glClearColor(m_clearColor.R, m_clearColor.G, m_clearColor.B, m_clearColor.A);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    drawObject(*m_cube);
-}
-
-void Game::Destroy() {
-    m_cube.reset();
-    m_material.reset();
-    m_shader.reset();
-}
-
-void Game::showInfo() {
-    const char* vendor = (const char*)glGetString(GL_VENDOR);
-    const char* renderer = (const char*)glGetString(GL_RENDERER);
-    const char* version = (const char*)glGetString(GL_VERSION);
-
-    LogInfo("GPU: {} - {}", vendor, renderer);
-    LogInfo("OpenGL: {}", version);
-}
-
-void Game::initResources() {
-    m_shader = std::make_shared<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
-    m_material = std::make_shared<Material>(Material{
-        .Tint = Color{1.0f},
-        .MaterialShader = m_shader,
-        .Diffuse = std::make_shared<Texture>("assets/textures/crate_diffuse.png", TextureFormat::SRGBA8),
-        .Specular = std::make_shared<Texture>("assets/textures/crate_specular.png", TextureFormat::RGBA8)
-    });
-
-    m_cube = std::make_unique<GameObject>(GameObject{
-        .ObjectMesh = CreateCube(1.0f),
-        .ObjectMaterial = m_material,
-    });
-}
-
 void Game::drawObject(const GameObject& obj) {
-    obj.ObjectMaterial->Apply();
+    if (!obj.ObjectModel) return;
 
-    auto& shader = obj.ObjectMaterial->MaterialShader;
-    shader->SetMat4("uModel", obj.ObjectTransform.GetModelMatrix());
-    shader->SetMat4("uView", m_camera.GetView());
-    shader->SetMat4("uProjection", m_camera.GetProjection(m_window.GetAspectRatio()));
-    shader->SetVec3("uCameraPosition", m_camera.GetPosition());
+    const glm::mat4 rootTransform = obj.ObjectTransform.GetModelMatrix();
 
-    m_ambient.Apply(*shader);
-    m_sun.Apply(*shader);
+    for (uint32_t rootNode : obj.ObjectModel->GetRootNodes()) {
+        drawModelNode(*obj.ObjectModel, rootNode, rootTransform);
+    }
+}
 
-    obj.ObjectMesh->Draw();
+void Game::drawModelNode(const Model& model, uint32_t nodeIndex, const glm::mat4& parentTransform) {
+    const ModelNode& node = model.GetNodes()[nodeIndex];
+    const glm::mat4 modelMatrix = parentTransform * node.LocalTransform.GetModelMatrix();
+
+    if (node.MeshIndex) {
+        const ModelMesh& mesh = model.GetMeshes()[*node.MeshIndex];
+
+        for (const ModelPrimitive& primitive : mesh.Primitives) {
+            if (!primitive.Geometry) continue;
+            if (!primitive.MaterialIndex) continue;
+
+            const auto& material = model.GetMaterials()[*primitive.MaterialIndex];
+            if (!material) continue;
+
+            material->Apply();
+
+            auto& shader = material->MaterialShader;
+            shader->SetMat4("uModel", modelMatrix);
+            shader->SetMat4("uView", m_camera.GetView());
+            shader->SetMat4("uProjection", m_camera.GetProjection(m_window.GetAspectRatio()));
+            shader->SetVec3("uCameraPosition", m_camera.GetPosition());
+
+            m_ambient.Apply(*shader);
+            m_sun.Apply(*shader);
+
+            primitive.Geometry->Draw();
+        }
+    }
+
+    for (uint32_t childIndex : node.Children) {
+        drawModelNode(model, childIndex, modelMatrix);
+    }
 }

@@ -9,6 +9,7 @@
 #include <graphics/texture.hpp>
 #include <graphics/material.hpp>
 #include <graphics/light.hpp>
+#include <graphics/model.hpp>
 
 #include <world/gameobject.hpp>
 #include <world/transform.hpp>
@@ -43,11 +44,14 @@ class Game {
         DirectionalLight m_sun{};
 
         std::shared_ptr<Shader> m_shader;
-        std::shared_ptr<Material> m_material;
+        std::shared_ptr<Model> m_model;
 
         std::unique_ptr<GameObject> m_cube;
 
         void showInfo();
         void initResources();
+        void updateCamera(float deltatime);
+
         void drawObject(const GameObject& obj);
+        void drawModelNode(const Model& model, uint32_t nodeIndex, const glm::mat4& parentTransform);
 };
