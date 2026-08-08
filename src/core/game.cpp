@@ -40,6 +40,7 @@ void Game::Initialize() {
     };
 
     m_quadMesh = std::make_unique<Mesh>(vertices, indices);
+    m_camera.SetPosition({0.0f, 0.0f, 6.0f});
 }
 
 void Game::Update(float deltatime) {
@@ -51,6 +52,8 @@ void Game::Render() {
 
     m_basicShader->Bind();
     m_basicShader->SetMat4("uModel", m_quadTransform.GetModelMatrix());
+    m_basicShader->SetMat4("uView", m_camera.GetView());
+    m_basicShader->SetMat4("uProjection", m_camera.GetProjection(m_window.GetAspectRatio()));
     m_quadMesh->Draw();
 }
 

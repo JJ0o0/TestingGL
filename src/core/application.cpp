@@ -7,19 +7,20 @@ int Application::Run() {
     try {
         m_window = std::make_unique<Window>();
 
-        m_game.Initialize();
+        m_game.emplace(*m_window);
+        m_game->Initialize();
 
         float lastTime = glfwGetTime();
         float deltaTime = 0.0f;
-        while (m_game.IsRunning() && !m_window->ShouldClose()) {
+        while (m_game->IsRunning() && !m_window->ShouldClose()) {
             m_window->PollEvents();
 
             float currentTime = glfwGetTime();
             deltaTime = currentTime - lastTime;
             lastTime = currentTime;
 
-            m_game.Update(deltaTime);
-            m_game.Render();
+            m_game->Update(deltaTime);
+            m_game->Render();
 
             m_window->SwapBuffers();
         }
@@ -35,6 +36,6 @@ int Application::Run() {
 }
 
 void Application::stop() {
-    m_game.Destroy();
+    if (m_game.has_value()) m_game->Destroy();
     m_window.reset();
 }

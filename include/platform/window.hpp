@@ -22,6 +22,8 @@ class Window {
         void PollEvents() const { glfwPollEvents(); }
         void SwapBuffers() const { glfwSwapBuffers(m_window); }
 
+        float GetAspectRatio() const { return static_cast<float>(m_properties.Width) / static_cast<float>(m_properties.Height); }
+
         const WindowProperties& GetProperties() const { return m_properties; }
     private:
         WindowProperties m_properties;

@@ -20,6 +20,7 @@ add_executable(${CMAKE_PROJECT_NAME}
 
     "src/graphics/shader.cpp"
     "src/graphics/mesh.cpp"
+    "src/graphics/camera.cpp"
 
     "src/platform/window.cpp"
 )

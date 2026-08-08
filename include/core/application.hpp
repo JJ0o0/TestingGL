@@ -2,6 +2,7 @@
 
 #include <platform/window.hpp>
 #include <core/game.hpp>
+#include <optional>
 #include <memory>
 
 class Application {
@@ -9,7 +10,7 @@ class Application {
         int Run();
     private:
         std::unique_ptr<Window> m_window;
-        Game m_game;
+        std::optional<Game> m_game;
 
         void stop();
 };
