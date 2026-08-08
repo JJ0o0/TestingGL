@@ -1,5 +1,6 @@
 #include <graphics/model_loader.hpp>
 
+#include <platform/image_loading.hpp>
 #include <graphics/vertex.hpp>
 #include <core/logging.hpp>
 
@@ -16,7 +17,7 @@ static const fastgltf::Accessor* GetAccessor(
     std::string_view attributeName
 ) {
     const auto* attribute = primitive.findAttribute(attributeName);
-    if (!attribute) return nullptr;
+    if (attribute == primitive.attributes.end()) return nullptr;
 
     return &asset.accessors[attribute->accessorIndex];
 }
@@ -34,6 +35,71 @@ static void ReadAttribute(
     fastgltf::iterateAccessorWithIndex<T>(asset, *accessor, std::forward<F>(callback));
 }
 
+static ImageData LoadGltfImage(
+    const fastgltf::Asset& asset,
+    const fastgltf::Image& image
+) {
+    if (const auto* array = std::get_if<fastgltf::sources::Array>(&image.data)) {
+        return LoadImage(
+            std::span<const uint8_t>{reinterpret_cast<const uint8_t*>(array->bytes.data()), array->bytes.size()}
+        );
+    }
+
+    if (const auto* bytes = std::get_if<fastgltf::sources::ByteView>(&image.data)) {
+        return LoadImage(
+            std::span<const uint8_t>{reinterpret_cast<const uint8_t*>(bytes->bytes.data()), bytes->bytes.size()}
+        );
+    }
+
+    if (const auto* source = std::get_if<fastgltf::sources::BufferView>(&image.data)) {
+        const auto& bufferView = asset.bufferViews[source->bufferViewIndex];
+        const auto& buffer = asset.buffers[bufferView.bufferIndex];
+
+        if (const auto* array = std::get_if<fastgltf::sources::Array>(&buffer.data)) {
+            const auto* begin = reinterpret_cast<const uint8_t*>(array->bytes.data()) + bufferView.byteOffset;
+
+            return LoadImage(
+                std::span<const uint8_t>{
+                    begin,
+                    bufferView.byteLength
+                }
+            );
+        }
+
+        if (const auto* bytes = std::get_if<fastgltf::sources::ByteView>(&buffer.data)) {
+            const auto* begin = reinterpret_cast<const uint8_t*>(bytes->bytes.data()) + bufferView.byteOffset;
+
+            return LoadImage(
+                std::span<const uint8_t>{
+                    begin,
+                    bufferView.byteLength
+                }
+            );
+        }
+    }
+
+    LogWarning("Unsupported glTF image data source");
+    return {};
+}
+
+static std::shared_ptr<Texture> LoadGltfTexture(
+    const fastgltf::Asset& asset,
+    const fastgltf::TextureInfo& textureInfo,
+    TextureFormat format
+) {
+    const auto& gltfTexture = asset.textures[textureInfo.textureIndex];
+    if (!gltfTexture.imageIndex) return nullptr;
+
+    const auto& image = asset.images[*gltfTexture.imageIndex];
+    ImageData imageData = LoadGltfImage(asset, image);
+    if (imageData.Pixels.empty()) return nullptr;
+
+    return std::make_shared<Texture>(
+        imageData,
+        format
+    );
+}
+
 std::shared_ptr<Model> ModelLoader::Load(
     const std::filesystem::path& path,
     std::shared_ptr<Material> fallbackMaterial
@@ -48,6 +114,7 @@ std::shared_ptr<Model> ModelLoader::Load(
     fastgltf::Parser parser;
 
     constexpr auto options = fastgltf::Options::LoadExternalBuffers |
+                             fastgltf::Options::LoadExternalImages |
                              fastgltf::Options::GenerateMeshIndices |
                              fastgltf::Options::DecomposeNodeMatrices;
 
@@ -63,7 +130,31 @@ std::shared_ptr<Model> ModelLoader::Load(
     auto model = std::make_shared<Model>();
 
     // MATERIALS
-    model->m_materials.push_back(std::move(fallbackMaterial));
+    for (const auto& gltfMaterial : asset.materials) {
+        const auto& pbr = gltfMaterial.pbrData;
+
+        auto material = std::make_shared<Material>();
+        material->MaterialShader = fallbackMaterial->MaterialShader;
+        material->Tint = Color {
+            pbr.baseColorFactor[0],
+            pbr.baseColorFactor[1],
+            pbr.baseColorFactor[2],
+            pbr.baseColorFactor[3]
+        };
+
+        material->Diffuse = DefaultResources::WhiteTexture();
+
+        material->Specular = DefaultResources::BlackTexture();
+        material->Shininess = 32.0f;
+
+        // BASE
+        if (pbr.baseColorTexture) {
+            auto texture = LoadGltfTexture(asset, *pbr.baseColorTexture, TextureFormat::SRGBA8);
+            if (texture) material->Diffuse = std::move(texture);
+        }
+
+        model->m_materials.push_back(std::move(material));
+    }
 
     // MESHES
     for (const auto& gltfMesh : asset.meshes) {
@@ -122,7 +213,9 @@ std::shared_ptr<Model> ModelLoader::Load(
 
             modelMesh.Primitives.push_back(ModelPrimitive{
                 .Geometry = std::make_shared<Mesh>(vertices, indices),
-                .MaterialIndex = 0
+                .MaterialIndex = primitive.materialIndex
+                    ? std::optional<uint32_t>{static_cast<uint32_t>(*primitive.materialIndex)}
+                    : std::nullopt
             });
         }
 

@@ -25,8 +25,8 @@ void Game::Initialize() {
 
     initResources();
 
+    m_cube->ObjectTransform.Scale *= 0.05f;
     m_camera.SetPosition({0.0f, 0.0f, 6.0f});
-
     m_sun.Direction = {-0.3f, -1.0f, -0.4f};
 }
 
@@ -64,7 +64,7 @@ void Game::initResources() {
         .Diffuse = std::make_shared<Texture>("assets/textures/grid.png", TextureFormat::SRGBA8),
     });
 
-    m_model = ModelLoader::Load("assets/models/suzanne.glb", material);
+    m_model = ModelLoader::Load("assets/models/survival_guitar_backpack.glb", material);
     if (!m_model) {
         LogError("Failed to load test model");
         return;
