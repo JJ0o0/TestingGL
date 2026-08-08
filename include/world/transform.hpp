@@ -20,11 +20,11 @@ struct Transform {
         Rotation = glm::quat(glm::radians(degrees));
     }
 
-    glm::vec3 GetEulerRotation() {
+    glm::vec3 GetEulerRotation() const {
         return glm::degrees(glm::eulerAngles(Rotation));
     }
 
-    glm::mat4 GetModelMatrix() {
+    glm::mat4 GetModelMatrix() const {
         glm::mat4 model{1.0f};
         model = glm::translate(model, Position);
         model *= glm::mat4_cast(Rotation);

@@ -7,7 +7,8 @@
 #include <graphics/camera.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/material.hpp>
-#include <math/transform.hpp>
+#include <world/gameobject.hpp>
+#include <world/transform.hpp>
 #include <memory>
 
 class Game {
@@ -30,9 +31,9 @@ class Game {
         Camera m_camera{};
 
         std::shared_ptr<Shader> m_shader;
-        std::shared_ptr<Texture> m_texture;
         std::shared_ptr<Material> m_material;
 
-        Transform m_quadTransform{};
-        std::shared_ptr<Mesh> m_mesh;
+        std::unique_ptr<GameObject> m_cube;
+
+        void drawObject(const GameObject& obj);
 };
