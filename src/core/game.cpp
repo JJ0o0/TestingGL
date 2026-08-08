@@ -2,6 +2,7 @@
 
 #include <core/logging.hpp>
 #include <graphics/vertex.hpp>
+#include <graphics/color.hpp>
 
 #include <glad/gl.h>
 
@@ -42,14 +43,14 @@ void Game::Initialize() {
 }
 
 void Game::Update(float deltatime) {
-
 }
 
 void Game::Render() {
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClearColor(m_clearColor.R, m_clearColor.G, m_clearColor.B, m_clearColor.A);
     glClear(GL_COLOR_BUFFER_BIT);
 
     m_basicShader->Bind();
+    m_basicShader->SetMat4("uModel", m_quadTransform.GetModelMatrix());
     m_quadMesh->Draw();
 }
 

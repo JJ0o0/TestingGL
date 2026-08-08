@@ -2,6 +2,8 @@
 
 #include <core/logging.hpp>
 
+#include <glm/gtc/type_ptr.hpp>
+
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -29,6 +31,10 @@ Shader::Shader(const std::filesystem::path& vertexPath, const std::filesystem::p
 Shader::~Shader() { if (m_id) glDeleteProgram(m_id); }
 
 void Shader::Bind() const { glUseProgram(m_id); }
+
+void Shader::SetMat4(const std::string& name, const glm::mat4& value) {
+    glProgramUniformMatrix4fv(m_id, getUniformLocation(name), 1, GL_FALSE, glm::value_ptr(value));
+}
 
 uint32_t Shader::compileShader(const char* code, GLenum type) {
     uint32_t shader = glCreateShader(type);
@@ -98,6 +104,16 @@ bool Shader::isProgramLinkingSuccessful(uint32_t program) {
 
     LogWarning("Shader Program Linking failed: {}", log);
     return false;
+}
+
+int Shader::getUniformLocation(const std::string& name) {
+    int location = getUniformLocationSilent(name);
+    if (location == -1) LogWarning("{} Uniform Location not found", name);
+    return location;
+}
+
+int Shader::getUniformLocationSilent(const std::string& name) {
+    return glGetUniformLocation(m_id, name.c_str());
 }
 
 std::string Shader::readShaderFile(const std::filesystem::path& path) {

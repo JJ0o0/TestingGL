@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glad/gl.h>
+#include <glm/glm.hpp>
 
 #include <filesystem>
 #include <cstdint>
@@ -11,6 +12,10 @@ class Shader {
         ~Shader();
 
         void Bind() const;
+
+        void SetMat4(const std::string& name, const glm::mat4& value);
+
+        bool UniformExists(const std::string& name) { return getUniformLocationSilent(name) != 1; }
     private:
         uint32_t m_id = 0;
 
@@ -19,6 +24,9 @@ class Shader {
 
         bool isShaderCompilationSuccessful(uint32_t shader, GLenum type);
         bool isProgramLinkingSuccessful(uint32_t program);
+
+        int getUniformLocation(const std::string& name);
+        int getUniformLocationSilent(const std::string& name);
 
         std::string readShaderFile(const std::filesystem::path& path);
 };
