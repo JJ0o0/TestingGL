@@ -34,5 +34,5 @@ class Game {
         std::shared_ptr<Material> m_material;
 
         Transform m_quadTransform{};
-        std::unique_ptr<Mesh> m_quadMesh;
+        std::shared_ptr<Mesh> m_mesh;
 };

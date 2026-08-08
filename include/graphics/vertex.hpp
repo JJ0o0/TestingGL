@@ -5,5 +5,6 @@
 
 struct Vertex {
     glm::vec3 Position{0.0f};
+    glm::vec3 Normal{0.0f};
     glm::vec2 TexCoords{0.0f};
 };

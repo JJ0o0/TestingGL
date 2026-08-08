@@ -5,11 +5,9 @@
 
 #include <graphics/vertex.hpp>
 #include <graphics/color.hpp>
+#include <graphics/premade_meshes/cube.hpp>
 
 #include <glad/gl.h>
-
-#include <cstdint>
-#include <vector>
 
 void Game::Initialize() {
     const char* vendor = (const char*)glGetString(GL_VENDOR);
@@ -27,43 +25,15 @@ void Game::Initialize() {
         .Diffuse = m_texture
     });
 
-    std::vector<Vertex> vertices {
-        Vertex {
-            .Position = {0.5f, 0.5f, 0.0f},
-            .TexCoords = {1.0f, 1.0f}
-        },
-        Vertex {
-            .Position = {0.5f, -0.5f, 0.0f},
-            .TexCoords = {1.0f, 0.0f}
-        },
-        Vertex {
-            .Position = {-0.5f, 0.5f, 0.0f},
-            .TexCoords = {0.0f, 1.0f}
-        },
-        Vertex {
-            .Position = {-0.5f, -0.5f, 0.0f},
-            .TexCoords = {0.0f, 0.0f}
-        },
-    };
-
-    std::vector<uint32_t> indices {
-        0, 2, 1,
-        1, 2, 3
-    };
-
-    m_quadMesh = std::make_unique<Mesh>(vertices, indices);
+    m_mesh = CreateCube(1.0f);
     m_camera.SetPosition({0.0f, 0.0f, 6.0f});
 }
 
 void Game::Update(float deltatime) {
-    const float rotationSpeed = 40.0f;
+    float rotationSpeed = 50.0f;
+    if (Input::IsKeyDown(GLFW_KEY_SPACE)) rotationSpeed = 100.0f;
 
-    if (Input::IsKeyDown(GLFW_KEY_SPACE)) {
-        float yRot = m_quadTransform.GetEulerRotation().y + (rotationSpeed * deltatime);
-        m_quadTransform.RotateEuler({
-            0.0f, yRot, 0.0f
-        });
-    }
+    m_quadTransform.Rotate(glm::vec3{rotationSpeed * deltatime});
 }
 
 void Game::Render() {
@@ -77,11 +47,11 @@ void Game::Render() {
     m_shader->SetMat4("uProjection", m_camera.GetProjection(m_window.GetAspectRatio()));
 
     m_material->Apply();
-    m_quadMesh->Draw();
+    m_mesh->Draw();
 }
 
 void Game::Destroy() {
-    m_quadMesh.reset();
+    m_mesh.reset();
     m_material.reset();
     m_texture.reset();
     m_shader.reset();

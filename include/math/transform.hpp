@@ -11,7 +11,12 @@ struct Transform {
     glm::quat Rotation = glm::quat_identity<float, glm::highp>();
     glm::vec3 Scale{1.0f};
 
-    void RotateEuler(const glm::vec3& degrees) {
+    void Rotate(const glm::vec3& degrees) {
+        const glm::quat delta = glm::quat(glm::radians(degrees));
+        Rotation = glm::normalize(Rotation * delta);
+    }
+
+    void SetEulerRotation(const glm::vec3& degrees) {
         Rotation = glm::quat(glm::radians(degrees));
     }
 
