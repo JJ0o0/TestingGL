@@ -19,6 +19,7 @@ add_executable(${CMAKE_PROJECT_NAME}
     "src/core/game.cpp"
 
     "src/graphics/shader.cpp"
+    "src/graphics/mesh.cpp"
 
     "src/platform/window.cpp"
 )
@@ -37,6 +38,7 @@ target_include_directories(${CMAKE_PROJECT_NAME}
 target_link_libraries(${CMAKE_PROJECT_NAME}
     PRIVATE
         glfw
+        glm::glm
 )
 
 set_target_properties(${CMAKE_PROJECT_NAME}

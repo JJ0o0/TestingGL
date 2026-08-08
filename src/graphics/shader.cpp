@@ -16,6 +16,13 @@ Shader::Shader(const std::filesystem::path& vertexPath, const std::filesystem::p
     uint32_t vertexShader = compileShader(vertexCode, GL_VERTEX_SHADER);
     uint32_t fragmentShader = compileShader(fragmentCode, GL_FRAGMENT_SHADER);
 
+    if (!vertexShader || !fragmentShader) {
+        if (vertexShader) glDeleteShader(vertexShader);
+        if (fragmentShader) glDeleteShader(fragmentShader);
+
+        return;
+    }
+
     m_id = compileProgram(vertexShader, fragmentShader);
 }
 
@@ -28,7 +35,7 @@ uint32_t Shader::compileShader(const char* code, GLenum type) {
     glShaderSource(shader, 1, &code, nullptr);
     glCompileShader(shader);
 
-    if (!checkShaderCompilationError(shader, type)) {
+    if (!isShaderCompilationSuccessful(shader, type)) {
         glDeleteShader(shader);
         return 0;
     }
@@ -42,7 +49,7 @@ uint32_t Shader::compileProgram(uint32_t vertexShader, uint32_t fragmentShader) 
     glAttachShader(program, fragmentShader);
     glLinkProgram(program);
 
-    if (!checkProgramLinkingError(program)) {
+    if (!isProgramLinkingSuccessful(program)) {
         glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
         glDeleteProgram(program);
@@ -54,7 +61,7 @@ uint32_t Shader::compileProgram(uint32_t vertexShader, uint32_t fragmentShader) 
     return program;
 }
 
-bool Shader::checkShaderCompilationError(uint32_t shader, GLenum type) {
+bool Shader::isShaderCompilationSuccessful(uint32_t shader, GLenum type) {
     int success = 0;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
 
@@ -77,7 +84,7 @@ bool Shader::checkShaderCompilationError(uint32_t shader, GLenum type) {
     return false;
 }
 
-bool Shader::checkProgramLinkingError(uint32_t program) {
+bool Shader::isProgramLinkingSuccessful(uint32_t program) {
     int success = 0;
     glGetProgramiv(program, GL_LINK_STATUS, &success);
 

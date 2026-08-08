@@ -17,8 +17,8 @@ class Shader {
         uint32_t compileShader(const char* code, GLenum type);
         uint32_t compileProgram(uint32_t vertexShader, uint32_t fragmentShader);
 
-        bool checkShaderCompilationError(uint32_t shader, GLenum type);
-        bool checkProgramLinkingError(uint32_t program);
+        bool isShaderCompilationSuccessful(uint32_t shader, GLenum type);
+        bool isProgramLinkingSuccessful(uint32_t program);
 
         std::string readShaderFile(const std::filesystem::path& path);
 };

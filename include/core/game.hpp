@@ -1,6 +1,7 @@
 #pragma once
 
 #include <graphics/shader.hpp>
+#include <graphics/mesh.hpp>
 #include <memory>
 
 class Game {
@@ -16,4 +17,5 @@ class Game {
         bool m_running = true;
 
         std::unique_ptr<Shader> m_basicShader;
+        std::unique_ptr<Mesh> m_quadMesh;
 };
