@@ -13,7 +13,7 @@ glm::mat4 Camera::GetView() const {
 
 glm::mat4 Camera::GetProjection(float aspectRatio) const {
     return glm::perspective(
-        m_properties.FieldOfView,
+        glm::radians(m_properties.FieldOfView),
         aspectRatio,
         m_properties.Near, m_properties.Far
     );

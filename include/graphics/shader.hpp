@@ -15,8 +15,11 @@ class Shader {
         void Bind() const;
 
         void SetInt(const std::string& name, int value);
-        void SetMat4(const std::string& name, const glm::mat4& value);
+        void SetFloat(const std::string& name, float value);
+        void SetVec3(const std::string& name, const glm::vec3& value);
         void SetVec4(const std::string& name, const glm::vec4& value);
+        void SetMat4(const std::string& name, const glm::mat4& value);
+        void SetColor3(const std::string& name, const Color& value);
         void SetColor(const std::string& name, const Color& value);
 
         bool UniformExists(const std::string& name) { return getUniformLocationSilent(name) != 1; }

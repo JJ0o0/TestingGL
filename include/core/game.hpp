@@ -1,14 +1,18 @@
 #pragma once
 
 #include <platform/window.hpp>
+
 #include <graphics/shader.hpp>
 #include <graphics/mesh.hpp>
 #include <graphics/color.hpp>
 #include <graphics/camera.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/material.hpp>
+#include <graphics/light.hpp>
+
 #include <world/gameobject.hpp>
 #include <world/transform.hpp>
+
 #include <memory>
 
 class Game {
@@ -28,12 +32,22 @@ class Game {
         bool m_running = true;
 
         Color m_clearColor{0.1f, 0.1f, 0.15f};
+
+        float m_cameraYaw = 0.0f;
+        float m_cameraPitch = 20.0f;
+        float m_cameraDistance = 6.0f;
+        float m_targetCameraDistance = 6.0f;
         Camera m_camera{};
+
+        AmbientLight m_ambient{};
+        DirectionalLight m_sun{};
 
         std::shared_ptr<Shader> m_shader;
         std::shared_ptr<Material> m_material;
 
         std::unique_ptr<GameObject> m_cube;
 
+        void showInfo();
+        void initResources();
         void drawObject(const GameObject& obj);
 };

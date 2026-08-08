@@ -12,6 +12,8 @@ class Camera {
     public:
         Camera(const CameraProperties& properties = {}) : m_properties(properties) {}
 
+        void LookAt(const glm::vec3& target) { m_front = glm::normalize(target - m_position); }
+
         glm::mat4 GetView() const;
         glm::mat4 GetProjection(float aspectRatio) const;
 
