@@ -3,6 +3,8 @@
 #include <core/error_handling.hpp>
 #include <core/logging.hpp>
 
+#include <stb/stb_image.h>
+
 #include <array>
 
 void APIENTRY Window::openglDebugOutput(
@@ -91,6 +93,8 @@ Window::Window(const WindowProperties& properties)
     glfwSetFramebufferSizeCallback(m_window, glfwFramebufferSizeCallback);
 
     glViewport(0, 0, static_cast<int>(m_properties.Width), static_cast<int>(m_properties.Height));
+
+    stbi_set_flip_vertically_on_load(true);
 
     LogInfo("Created Window ({}x{})", m_properties.Width, m_properties.Height);
 }

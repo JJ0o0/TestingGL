@@ -14,13 +14,15 @@ include(cmake/dependencies.cmake)
 add_executable(${CMAKE_PROJECT_NAME}
     "src/main.cpp"
     "src/gl.c"
+    "src/stb_image.cpp"
 
     "src/core/application.cpp"
     "src/core/game.cpp"
 
-    "src/graphics/shader.cpp"
-    "src/graphics/mesh.cpp"
     "src/graphics/camera.cpp"
+    "src/graphics/mesh.cpp"
+    "src/graphics/shader.cpp"
+    "src/graphics/texture.cpp"
 
     "src/platform/window.cpp"
 )

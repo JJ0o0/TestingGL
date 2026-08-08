@@ -5,6 +5,7 @@
 #include <graphics/mesh.hpp>
 #include <graphics/color.hpp>
 #include <graphics/camera.hpp>
+#include <graphics/texture.hpp>
 #include <math/transform.hpp>
 #include <memory>
 
@@ -28,6 +29,7 @@ class Game {
         Camera m_camera{};
 
         std::unique_ptr<Shader> m_basicShader;
+        std::unique_ptr<Texture> m_texture;
 
         Transform m_quadTransform{};
         std::unique_ptr<Mesh> m_quadMesh;

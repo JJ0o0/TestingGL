@@ -18,19 +18,24 @@ void Game::Initialize() {
     LogInfo("OpenGL: {}", version);
 
     m_basicShader = std::make_unique<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
+    m_texture = std::make_unique<Texture>("assets/textures/grid.png");
 
     std::vector<Vertex> vertices {
         Vertex {
-            .Position = {0.5f, 0.5f, 0.0f}
+            .Position = {0.5f, 0.5f, 0.0f},
+            .TexCoords = {1.0f, 1.0f}
         },
         Vertex {
-            .Position = {0.5f, -0.5f, 0.0f}
+            .Position = {0.5f, -0.5f, 0.0f},
+            .TexCoords = {1.0f, 0.0f}
         },
         Vertex {
-            .Position = {-0.5f, 0.5f, 0.0f}
+            .Position = {-0.5f, 0.5f, 0.0f},
+            .TexCoords = {0.0f, 1.0f}
         },
         Vertex {
-            .Position = {-0.5f, -0.5f, 0.0f}
+            .Position = {-0.5f, -0.5f, 0.0f},
+            .TexCoords = {0.0f, 0.0f}
         },
     };
 
@@ -54,10 +59,13 @@ void Game::Render() {
     m_basicShader->SetMat4("uModel", m_quadTransform.GetModelMatrix());
     m_basicShader->SetMat4("uView", m_camera.GetView());
     m_basicShader->SetMat4("uProjection", m_camera.GetProjection(m_window.GetAspectRatio()));
+    m_texture->Bind();
     m_quadMesh->Draw();
+    m_texture->Unbind();
 }
 
 void Game::Destroy() {
     m_quadMesh.reset();
+    m_texture.reset();
     m_basicShader.reset();
 }

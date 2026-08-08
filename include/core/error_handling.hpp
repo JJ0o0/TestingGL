@@ -5,8 +5,17 @@
 
 static inline void CheckError(bool trueCondition, const char* title, const char* description) {
     if (!trueCondition) {
-        std::string formatted = std::format("({}): {}", title, description);
-        const char* formattedSource = formatted.c_str();
-        throw std::runtime_error(formattedSource);
+        throw std::runtime_error(
+            std::format("({}): {}", title, description)
+        );
+    }
+}
+
+template<typename... Args>
+inline void CheckError(bool trueCondition, const char* title, std::format_string<Args...> fmt, Args&&... args) {
+    if (!trueCondition) {
+        throw std::runtime_error(
+            std::format("({}): {}", title, std::format(fmt, std::forward<Args>(args)...))
+        );
     }
 }
