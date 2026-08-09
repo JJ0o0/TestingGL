@@ -3,7 +3,8 @@
 void Renderer::Render(
     const Scene& scene,
     const Camera& camera,
-    const Color& clearColor
+    const Color& clearColor,
+    const Cubemap& environmentMap
 ) {
     glClearColor(clearColor.R, clearColor.G, clearColor.B, clearColor.A);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -13,6 +14,13 @@ void Renderer::Render(
     for (const auto& [_, obj] : scene.GetGameObjects()) {
         drawObject(obj, camera, ambient, sun);
     }
+
+    drawSkybox(environmentMap, camera);
+}
+
+void Renderer::Destroy() {
+    m_skyboxShader.reset();
+    m_skyboxMesh.reset();
 }
 
 void Renderer::drawObject(
@@ -81,4 +89,24 @@ void Renderer::drawModelNode(
             sun
         );
     }
+}
+
+void Renderer::drawSkybox(
+    const Cubemap& cubemap,
+    const Camera& camera
+) {
+    glDepthFunc(GL_LEQUAL);
+
+    const GLboolean cullingEnabled = glIsEnabled(GL_CULL_FACE);
+    glDisable(GL_CULL_FACE);
+
+    m_skyboxShader->Bind();
+    m_skyboxShader->SetMat4("uView", camera.GetView());
+    m_skyboxShader->SetMat4("uProjection", camera.GetProjection(m_window.GetAspectRatio()));
+
+    cubemap.Bind(0);
+    m_skyboxMesh->Draw();
+
+    if (cullingEnabled) glEnable(GL_CULL_FACE);
+    glDepthFunc(GL_LESS);
 }

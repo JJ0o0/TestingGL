@@ -6,7 +6,7 @@
 #include <utility>
 
 Texture::Texture(const std::filesystem::path& path, TextureFormat format)
-    : Texture(LoadImage(path, true), format){
+    : Texture(LoadImage(path, true), format) {
 
 }
 
@@ -37,6 +37,27 @@ Texture::Texture(const ImageData& image, TextureFormat format) {
     );
 
     glGenerateMipmap(GL_TEXTURE_2D);
+}
+
+Texture::Texture(const HDRImageData& image) {
+    glGenTextures(1, &m_id);
+    glBindTexture(GL_TEXTURE_2D, m_id);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGB16F,
+        image.Width, image.Height,
+        0,
+        GL_RGB,
+        GL_FLOAT,
+        image.Pixels.data()
+    );
 }
 
 Texture::~Texture() {

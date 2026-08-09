@@ -29,6 +29,7 @@ add_executable(${CMAKE_PROJECT_NAME}
     "src/graphics/texture.cpp"
     "src/graphics/model_loader.cpp"
     "src/graphics/material.cpp"
+    "src/graphics/cubemap.cpp"
 
     "src/platform/window.cpp"
     "src/platform/default_resources.cpp"

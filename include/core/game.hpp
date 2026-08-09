@@ -6,6 +6,7 @@
 
 #include <graphics/material.hpp>
 #include <graphics/texture.hpp>
+#include <graphics/cubemap.hpp>
 #include <graphics/camera.hpp>
 #include <graphics/shader.hpp>
 #include <graphics/color.hpp>
@@ -48,6 +49,7 @@ class Game {
         Camera m_camera{};
 
         std::shared_ptr<Shader> m_shader;
+        std::shared_ptr<Cubemap> m_environmentMap;
         std::shared_ptr<Model> m_model;
 
         Scene m_scene;

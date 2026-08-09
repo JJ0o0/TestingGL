@@ -3,8 +3,11 @@
 #include <core/logging.hpp>
 #include <core/input.hpp>
 
+#include <platform/image_loading.hpp>
+
 #include <graphics/vertex.hpp>
 #include <graphics/color.hpp>
+#include <graphics/environment.hpp>
 #include <graphics/model_loader.hpp>
 #include <graphics/premade_meshes/cube.hpp>
 
@@ -31,14 +34,18 @@ void Game::Update(float deltatime) {
 }
 
 void Game::Render() {
-    m_renderer.Render(m_scene, m_camera, m_clearColor);
+    m_renderer.Render(m_scene, m_camera, m_clearColor, *m_environmentMap);
 }
 
 void Game::Destroy() {
     m_scene.Clear();
 
+    m_environmentMap.reset();
+
     m_model.reset();
     m_shader.reset();
+
+    m_renderer.Destroy();
 }
 
 void Game::showInfo() {
@@ -52,6 +59,12 @@ void Game::showInfo() {
 
 void Game::initResources() {
     m_shader = std::make_shared<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
+
+    HDRImageData hdr = LoadHDRImage("assets/hdr/environment.hdr", true);
+    auto hdrTexture = std::make_shared<Texture>(hdr);
+
+    m_environmentMap = CreateEnvironmentCubemap(*hdrTexture, 512);
+
     m_model = ModelLoader::Load("assets/models/survival_guitar_backpack.glb", m_shader);
     if (!m_model) {
         LogError("Failed to load test model");

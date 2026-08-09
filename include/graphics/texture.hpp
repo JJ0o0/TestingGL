@@ -13,6 +13,7 @@ class Texture {
     public:
         Texture(const std::filesystem::path& path, TextureFormat format = TextureFormat::SRGBA8);
         Texture(const ImageData& image, TextureFormat format = TextureFormat::SRGBA8);
+        Texture(const HDRImageData& image);
         ~Texture();
 
         Texture(const Texture&) = delete;

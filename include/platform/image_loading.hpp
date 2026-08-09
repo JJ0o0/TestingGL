@@ -61,3 +61,57 @@ inline ImageData LoadImage(std::span<const uint8_t> data, bool flipVertically = 
 
     return result;
 }
+
+inline HDRImageData LoadHDRImage(const std::filesystem::path& path, bool flipVertically = false) {
+    const std::string pathStr = path.string();
+    int width = 0, height = 0;
+
+    using STBIData = std::unique_ptr<float, decltype(&stbi_image_free)>;
+
+    stbi_set_flip_vertically_on_load(flipVertically);
+    STBIData stbiData {
+        stbi_loadf(pathStr.c_str(), &width, &height, nullptr, STBI_rgb),
+        &stbi_image_free
+    };
+
+    CheckError(stbiData != nullptr, "HDR Loading", "Failed loading HDR texture at {}: {}", pathStr, stbi_failure_reason());
+    CheckError(width > 0 && height > 0, "HDR Loading", "HDR texture at {} has invalid dimensions: {}x{}", pathStr, width, height);
+
+    HDRImageData result{};
+    result.Width = static_cast<uint32_t>(width);
+    result.Height = static_cast<uint32_t>(height);
+
+    const size_t floatCount = static_cast<size_t>(width) * static_cast<size_t>(height) * STBI_rgb;
+    result.Pixels.assign(stbiData.get(), stbiData.get() + floatCount);
+
+    return result;
+}
+
+inline HDRImageData LoadHDRImage(std::span<const uint8_t> data, bool flipVertically = false) {
+    CheckError(!data.empty(), "HDR Loading", "Tried loading HDR image from empty memory buffer");
+
+    int width = 0, height = 0;
+
+    using STBIData = std::unique_ptr<float, decltype(&stbi_image_free)>;
+
+    stbi_set_flip_vertically_on_load(flipVertically);
+    STBIData stbiData{
+        stbi_loadf_from_memory(data.data(), static_cast<int>(data.size()), &width, &height, nullptr, STBI_rgb),
+        &stbi_image_free
+    };
+
+    CheckError(stbiData != nullptr, "HDR Loading", "Failed loading HDR texture from memory: {}", stbi_failure_reason());
+    CheckError(width > 0 && height > 0, "HDR Loading", "HDR texture loaded from memory has invalid dimensions: {}x{}", width, height);
+
+    HDRImageData result{};
+    result.Width = static_cast<uint32_t>(width);
+    result.Height = static_cast<uint32_t>(height);
+
+    const size_t floatCount = static_cast<size_t>(width) * static_cast<size_t>(height) * STBI_rgb;
+    result.Pixels.assign(
+        stbiData.get(),
+        stbiData.get() + floatCount
+    );
+
+    return result;
+}

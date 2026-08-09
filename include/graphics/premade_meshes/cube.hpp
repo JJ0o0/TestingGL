@@ -174,3 +174,50 @@ inline std::shared_ptr<Mesh> CreateCube(float size = 1.0f) {
 
     return std::make_shared<Mesh>(vertices, indices);
 }
+
+inline std::shared_ptr<Mesh> CreateCubemapCube(float size = 1.0f) {
+    CheckError(size > 0.0f, "Mesh Creation", "Tried to create Cubemap Cube with invalid size");
+
+    const float half = size * 0.5f;
+    std::vector<Vertex> vertices{
+        { .Position = {-half, -half, -half} },
+        { .Position = { half, -half, -half} },
+        { .Position = { half,  half, -half} },
+        { .Position = {-half,  half, -half} },
+        { .Position = {-half, -half,  half} },
+        { .Position = { half, -half,  half} },
+        { .Position = { half,  half,  half} },
+        { .Position = {-half,  half,  half} },
+    };
+
+    std::vector<uint32_t> indices{
+        // BACK
+        0, 2, 1,
+        2, 0, 3,
+
+        // FRONT
+        4, 5, 6,
+        6, 7, 4,
+
+        // LEFT
+        0, 4, 7,
+        7, 3, 0,
+
+        // RIGHT
+        1, 2, 6,
+        6, 5, 1,
+
+        // BOTTOM
+        0, 1, 5,
+        5, 4, 0,
+
+        // TOP
+        3, 7, 6,
+        6, 2, 3
+    };
+
+    return std::make_shared<Mesh>(
+        vertices,
+        indices
+    );
+}
