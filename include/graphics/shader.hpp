@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 #include <graphics/color.hpp>
 
+#include <unordered_set>
 #include <filesystem>
 #include <cstdint>
 
@@ -36,4 +37,6 @@ class Shader {
         int getUniformLocationSilent(const std::string& name);
 
         std::string readShaderFile(const std::filesystem::path& path);
+        std::string loadShaderSource(const std::filesystem::path& path);
+        std::string preprocessShaderFile(const std::filesystem::path& path, std::unordered_set<std::filesystem::path>& includedFiles);
 };

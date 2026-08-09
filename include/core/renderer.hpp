@@ -17,8 +17,6 @@ class Renderer {
         void Render(
             const Scene& scene,
             const Camera& camera,
-            const AmbientLight& ambient,
-            const DirectionalLight& sun,
             const Color& clearColor
         );
     private:

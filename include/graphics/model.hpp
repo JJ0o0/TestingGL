@@ -11,7 +11,7 @@
 
 struct ModelPrimitive {
     std::shared_ptr<Mesh> Geometry;
-    std::optional<uint32_t> MaterialIndex;
+    uint32_t MaterialIndex;
 };
 
 struct ModelMesh {

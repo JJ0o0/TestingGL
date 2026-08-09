@@ -24,9 +24,6 @@ void Game::Initialize() {
     });
 
     initResources();
-
-    m_camera.SetPosition({0.0f, 0.0f, 6.0f});
-    m_sun.Direction = {-0.3f, -1.0f, -0.4f};
 }
 
 void Game::Update(float deltatime) {
@@ -34,12 +31,7 @@ void Game::Update(float deltatime) {
 }
 
 void Game::Render() {
-    m_renderer.Render(
-        m_scene,
-        m_camera,
-        m_ambient, m_sun,
-        m_clearColor
-    );
+    m_renderer.Render(m_scene, m_camera, m_clearColor);
 }
 
 void Game::Destroy() {
@@ -60,23 +52,26 @@ void Game::showInfo() {
 
 void Game::initResources() {
     m_shader = std::make_shared<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
-    auto material = std::make_shared<Material>(Material{
-        .Tint = Color{1.0f},
-        .MaterialShader = m_shader,
-        .Diffuse = std::make_shared<Texture>("assets/textures/grid.png", TextureFormat::SRGBA8),
-    });
-
-    m_model = ModelLoader::Load("assets/models/survival_guitar_backpack.glb", material);
+    m_model = ModelLoader::Load("assets/models/survival_guitar_backpack.glb", m_shader);
     if (!m_model) {
         LogError("Failed to load test model");
         return;
     }
 
-    GameObject& cube = m_scene.CreateGameObject("Cube");
-    cube.SetModel(m_model);
-    cube.GetTransform().Scale *= 0.005f;
+    GameObject& bag = m_scene.CreateGameObject("Bag");
+    bag.SetModel(m_model);
+    bag.GetTransform().Scale *= 0.005f;
 
-    m_cubeUUID = cube.GetUUID();
+    auto emissiveMaterial = std::make_shared<Material>();
+    emissiveMaterial->MaterialShader = m_shader;
+    emissiveMaterial->EmissiveColor = Color{1.0f, 0.0f, 0.0f};
+    emissiveMaterial->EmissiveStrength = 2.0f;
+
+    GameObject& cube = m_scene.CreateGameObject("Emissive");
+    cube.SetModel(Model::FromMesh(CreateCube(), emissiveMaterial));
+    cube.GetTransform().Position = {3.0f, 1.0f, 2.0f};
+
+    m_bagUUID = bag.GetUUID();
 }
 
 void Game::updateCamera(float deltatime) {
@@ -105,7 +100,7 @@ void Game::updateCamera(float deltatime) {
     const float yaw = glm::radians(m_cameraYaw);
     const float pitch = glm::radians(m_cameraPitch);
 
-    const GameObject* targetObj = m_scene.GetGameObject(m_cubeUUID);
+    const GameObject* targetObj = m_scene.GetGameObject(m_bagUUID);
     if (!targetObj) return;
 
     const glm::vec3 target = targetObj->GetTransform().Position;

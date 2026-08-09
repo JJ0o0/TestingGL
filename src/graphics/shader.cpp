@@ -1,5 +1,6 @@
 #include <graphics/shader.hpp>
 
+#include <core/error_handling.hpp>
 #include <core/logging.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
@@ -9,8 +10,8 @@
 #include <string>
 
 Shader::Shader(const std::filesystem::path& vertexPath, const std::filesystem::path& fragmentPath) {
-    const std::string vertexCodeStr = readShaderFile(vertexPath);
-    const std::string fragmentCodeStr = readShaderFile(fragmentPath);
+    const std::string vertexCodeStr = loadShaderSource(vertexPath);
+    const std::string fragmentCodeStr = loadShaderSource(fragmentPath);
 
     const char* vertexCode = vertexCodeStr.c_str();
     const char* fragmentCode = fragmentCodeStr.c_str();
@@ -21,11 +22,12 @@ Shader::Shader(const std::filesystem::path& vertexPath, const std::filesystem::p
     if (!vertexShader || !fragmentShader) {
         if (vertexShader) glDeleteShader(vertexShader);
         if (fragmentShader) glDeleteShader(fragmentShader);
-
-        return;
     }
 
+    CheckError(vertexShader && fragmentShader, "Shader Compilation", "Failed to compile shader program");
+
     m_id = compileProgram(vertexShader, fragmentShader);
+    CheckError(m_id, "Shader Linking", "Failed to link shaders");
 }
 
 Shader::~Shader() { if (m_id) glDeleteProgram(m_id); }
@@ -157,4 +159,47 @@ std::string Shader::readShaderFile(const std::filesystem::path& path) {
     }
 
     return buffer.str();
+}
+
+std::string Shader::loadShaderSource(const std::filesystem::path& path) {
+    std::unordered_set<std::filesystem::path> includedFiles;
+    return preprocessShaderFile(path, includedFiles);
+}
+
+std::string Shader::preprocessShaderFile(const std::filesystem::path& path, std::unordered_set<std::filesystem::path>& includedFiles) {
+    const auto normalizedPath = std::filesystem::weakly_canonical(path);
+    if (includedFiles.contains(normalizedPath)) return {};
+
+    includedFiles.insert(normalizedPath);
+
+    const std::string src = readShaderFile(normalizedPath);
+    if (src.empty()) return {};
+
+    std::stringstream input(src);
+    std::stringstream output;
+
+    std::string line;
+    while (std::getline(input, line)) {
+        constexpr std::string_view includeDirective = "#include \"";
+
+        const auto start = line.find(includeDirective);
+        if (start == std::string::npos) {
+            output << line << '\n';
+            continue;
+        }
+
+        const auto pathStart = start + includeDirective.size();
+        const auto pathEnd = line.find('"', pathStart);
+        if (pathEnd == std::string::npos) {
+            LogWarning("Malformed #include in shader '{}': {}", normalizedPath.string(), line);
+            continue;
+        }
+
+        const std::string includeName = line.substr(pathStart, pathEnd - pathStart);
+        const auto includePath = normalizedPath.parent_path() / includeName;
+
+        output << preprocessShaderFile(includePath, includedFiles);
+    }
+
+    return output.str();
 }

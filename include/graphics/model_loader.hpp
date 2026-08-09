@@ -1,5 +1,6 @@
 #pragma once
 
+#include <core/resource_manager.hpp>
 #include <graphics/model.hpp>
 
 #include <filesystem>
@@ -9,6 +10,6 @@ class ModelLoader {
     public:
         static std::shared_ptr<Model> Load(
             const std::filesystem::path& path,
-            std::shared_ptr<Material> fallbackMaterial
+            std::shared_ptr<Shader> shader
         );
 };

@@ -8,11 +8,13 @@
 #include <memory>
 #include <span>
 
-inline ImageData LoadImage(const std::filesystem::path& path) {
+inline ImageData LoadImage(const std::filesystem::path& path, bool flipVertically = false) {
     const std::string pathStr = path.string();
     int width = 0, height = 0;
 
     using STBIData = std::unique_ptr<stbi_uc, decltype(&stbi_image_free)>;
+
+    stbi_set_flip_vertically_on_load(flipVertically);
     STBIData stbiData {
         stbi_load(pathStr.c_str(), &width, &height, nullptr, STBI_rgb_alpha),
         &stbi_image_free
@@ -31,12 +33,14 @@ inline ImageData LoadImage(const std::filesystem::path& path) {
     return result;
 }
 
-inline ImageData LoadImage(std::span<const uint8_t> data) {
+inline ImageData LoadImage(std::span<const uint8_t> data, bool flipVertically = false) {
     CheckError(!data.empty(), "Texture Loading", "Tried loading image from empty memory buffer");
 
     int width = 0, height = 0;
 
     using STBIData = std::unique_ptr<stbi_uc, decltype(&stbi_image_free)>;
+
+    stbi_set_flip_vertically_on_load(flipVertically);
     STBIData stbiData{
         stbi_load_from_memory(data.data(), static_cast<int>(data.size()), &width, &height, nullptr, STBI_rgb_alpha),
         &stbi_image_free

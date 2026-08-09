@@ -4,14 +4,14 @@
 
 #include <platform/window.hpp>
 
-#include <graphics/shader.hpp>
-#include <graphics/mesh.hpp>
-#include <graphics/color.hpp>
-#include <graphics/camera.hpp>
-#include <graphics/texture.hpp>
 #include <graphics/material.hpp>
+#include <graphics/texture.hpp>
+#include <graphics/camera.hpp>
+#include <graphics/shader.hpp>
+#include <graphics/color.hpp>
 #include <graphics/light.hpp>
 #include <graphics/model.hpp>
+#include <graphics/mesh.hpp>
 
 #include <world/gameobject.hpp>
 #include <world/transform.hpp>
@@ -47,14 +47,11 @@ class Game {
         float m_targetCameraDistance = 6.0f;
         Camera m_camera{};
 
-        AmbientLight m_ambient{};
-        DirectionalLight m_sun{};
-
         std::shared_ptr<Shader> m_shader;
         std::shared_ptr<Model> m_model;
 
         Scene m_scene;
-        UUID m_cubeUUID;
+        UUID m_bagUUID;
 
         void showInfo();
         void initResources();

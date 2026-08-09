@@ -6,7 +6,7 @@
 #include <utility>
 
 Texture::Texture(const std::filesystem::path& path, TextureFormat format)
-    : Texture(LoadImage(path), format){
+    : Texture(LoadImage(path, true), format){
 
 }
 

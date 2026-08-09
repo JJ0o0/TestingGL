@@ -21,12 +21,14 @@ add_executable(${CMAKE_PROJECT_NAME}
     "src/core/game.cpp"
     "src/core/input.cpp"
     "src/core/renderer.cpp"
+    "src/core/resource_manager.cpp"
 
     "src/graphics/camera.cpp"
     "src/graphics/mesh.cpp"
     "src/graphics/shader.cpp"
     "src/graphics/texture.cpp"
     "src/graphics/model_loader.cpp"
+    "src/graphics/material.cpp"
 
     "src/platform/window.cpp"
     "src/platform/default_resources.cpp"

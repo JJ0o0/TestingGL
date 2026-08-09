@@ -1,32 +1,27 @@
 #pragma once
 
-#include <platform/default_resources.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/shader.hpp>
 #include <graphics/color.hpp>
+
 #include <memory>
 
 struct Material {
-    Color Tint{1.0f};
+    Color BaseColor{1.0f};
+    Color EmissiveColor{0.0f, 0.0f, 0.0f, 1.0f};
+
+    float Metallic = 1.0f;
+    float Roughness = 1.0f;
+    float NormalScale = 1.0f;
+    float EmissiveStrength = 1.0f;
+    float OcclusionStrength = 1.0f;
+
+    std::shared_ptr<Texture> BaseColorTexture;
+    std::shared_ptr<Texture> ARMTexture;
+    std::shared_ptr<Texture> NormalTexture;
+    std::shared_ptr<Texture> EmissiveTexture;
 
     std::shared_ptr<Shader> MaterialShader;
 
-    std::shared_ptr<Texture> Diffuse;
-    std::shared_ptr<Texture> Specular;
-
-    float Shininess = 32.0f;
-
-    void Apply() {
-        MaterialShader->Bind();
-        MaterialShader->SetColor("uMaterial.Tint", Tint);
-        MaterialShader->SetInt("uMaterial.Diffuse", 0);
-        MaterialShader->SetInt("uMaterial.Specular", 1);
-        MaterialShader->SetFloat("uMaterial.Shininess", Shininess);
-
-        if (Diffuse) Diffuse->Bind(0);
-        else DefaultResources::WhiteTexture()->Bind(0);
-
-        if (Specular) Specular->Bind(1);
-        else DefaultResources::BlackTexture()->Bind(1);
-    }
+    void Apply() const;
 };

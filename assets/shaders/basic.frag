@@ -1,67 +1,56 @@
 #version 460 core
+
+#include "include/material.glsl"
+#include "include/pbr.glsl"
+#include "include/lighting.glsl"
+
 out vec4 FragColor;
 
 in vec3 FragPos;
 in vec3 Normal;
 in vec2 TexCoord;
-
-struct AmbientLight {
-    vec3 Tint;
-    float Intensity;
-};
-
-struct DirectionalLight {
-    vec3 Tint;
-    float Intensity;
-    vec3 Direction;
-};
-
-struct Material {
-    vec4 Tint;
-    sampler2D Diffuse;
-    sampler2D Specular;
-    float Shininess;
-};
-
-uniform Material uMaterial;
-uniform AmbientLight uAmbient;
-uniform DirectionalLight uDirectionalLight;
+in vec4 Tangent;
 
 uniform vec3 uCameraPosition;
 
-vec3 calculateDirectionalLightDiffuse(DirectionalLight light, vec3 N) {
-    vec3 L = normalize(-light.Direction);
-    float NdotL = max(dot(N, L), 0.0);
-
-    vec3 diffuse = light.Tint * light.Intensity * NdotL;
-    return diffuse;
-}
-
-vec3 calculateDirectionalLightSpecular(DirectionalLight light, vec3 N, vec3 V, vec2 uv) {
-    vec3 L = normalize(-light.Direction);
-    float NdotL = dot(N, L);
-
-    if (NdotL <= 0.0) return vec3(0.0);
-
-    vec3 R = reflect(-L, N);
-
-    float spec = pow(max(dot(V, R), 0.0), uMaterial.Shininess);
-    vec3 specularMap = texture(uMaterial.Specular, uv).rgb;
-
-    return light.Tint * light.Intensity * spec * specularMap;
-}
-
 void main() {
-    vec4 baseColor = texture(uMaterial.Diffuse, TexCoord);
-    baseColor *= uMaterial.Tint;
+    vec4 baseColorSample = texture(uBaseColorTexture, TexCoord);
+    vec4 baseColor = baseColorSample * uMaterial.BaseColor;
 
-    vec3 n = normalize(Normal);
-    vec3 v = normalize(uCameraPosition - FragPos);
+    vec3 arm = texture(uARMTexture, TexCoord).rgb;
 
-    vec3 ambient = uAmbient.Intensity * uAmbient.Tint;
-    vec3 diffuse = calculateDirectionalLightDiffuse(uDirectionalLight, n);
-    vec3 specular = calculateDirectionalLightSpecular(uDirectionalLight, n, v, TexCoord);
+    float ao = mix(1.0, arm.r, uMaterial.OcclusionStrength);
+    float roughness = arm.g * uMaterial.Roughness;
+    float metallic = arm.b * uMaterial.Metallic;
+    roughness = clamp(roughness, 0.0, 1.0);
+    metallic = clamp(metallic, 0.0, 1.0);
 
-    vec3 result = baseColor.rgb * (ambient + diffuse) + specular;
+    vec3 N = normalize(Normal); // NORMAL
+    vec3 T = normalize(Tangent.xyz - N * dot(N, Tangent.xyz)); // TANGENT
+    vec3 B = cross(N, T) * Tangent.w; // BITANGENT
+    mat3 TBN = mat3(T, B, N);
+
+    vec3 tangentNormal = texture(uNormalTexture, TexCoord).rgb;
+    tangentNormal = tangentNormal * 2.0 - 1.0;
+    tangentNormal.xy *= uMaterial.NormalScale;
+    tangentNormal = normalize(tangentNormal);
+
+    N = normalize(TBN * tangentNormal);
+
+    vec3 V = normalize(uCameraPosition - FragPos); // VIEW DIRECTION
+
+    vec3 ambient = CalculateAmbientLight(uAmbient) * baseColor.rgb;
+    vec3 directional = CalculateDirectionalLight(
+        uDirectionalLight,
+        baseColor.rgb, metallic, roughness,
+        N, V
+    );
+
+    vec3 emissiveSample = texture(uEmissiveTexture, TexCoord).rgb;
+    vec3 emissive = emissiveSample * uMaterial.EmissiveColor.rgb * uMaterial.EmissiveStrength;
+
+    ambient *= ao;
+
+    vec3 result = ambient + directional + emissive;
     FragColor = vec4(result, baseColor.a);
 }

@@ -3,9 +3,44 @@
 #include <core/error_handling.hpp>
 #include <core/logging.hpp>
 
-#include <stb/stb_image.h>
-
 #include <array>
+
+static std::string_view DebugSourceToString(GLenum source) {
+    switch (source) {
+        case GL_DEBUG_SOURCE_API: return "API";
+        case GL_DEBUG_SOURCE_WINDOW_SYSTEM: return "Window System";
+        case GL_DEBUG_SOURCE_SHADER_COMPILER: return "Shader Compiler";
+        case GL_DEBUG_SOURCE_THIRD_PARTY: return "Third Party";
+        case GL_DEBUG_SOURCE_APPLICATION: return "Application";
+        case GL_DEBUG_SOURCE_OTHER: return "Other";
+        default: return "Unknown";
+    }
+}
+
+static std::string_view DebugTypeToString(GLenum type) {
+    switch (type) {
+        case GL_DEBUG_TYPE_ERROR: return "Error";
+        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: return "Deprecated Behaviour";
+        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: return "Undefined Behaviour";
+        case GL_DEBUG_TYPE_PORTABILITY: return "Portability";
+        case GL_DEBUG_TYPE_PERFORMANCE: return "Performance";
+        case GL_DEBUG_TYPE_MARKER: return "Marker";
+        case GL_DEBUG_TYPE_PUSH_GROUP: return "Push Group";
+        case GL_DEBUG_TYPE_POP_GROUP: return "Pop Group";
+        case GL_DEBUG_TYPE_OTHER: return "Other";
+        default: return "Unknown";
+    }
+}
+
+static std::string_view DebugSeverityToString(GLenum severity) {
+    switch (severity) {
+        case GL_DEBUG_SEVERITY_HIGH: return "High";
+        case GL_DEBUG_SEVERITY_MEDIUM: return "Medium";
+        case GL_DEBUG_SEVERITY_LOW: return "Low";
+        case GL_DEBUG_SEVERITY_NOTIFICATION: return "Notification";
+        default: return "Unknown";
+    }
+}
 
 void APIENTRY Window::openglDebugOutput(
     GLenum src, GLenum type,
@@ -14,7 +49,7 @@ void APIENTRY Window::openglDebugOutput(
     GLsizei length,
     const char* msg, const void* userParam
 ) {
-    std::array<uint, 4> ignoreIds {
+    static constexpr std::array<uint, 4> ignoreIds {
         131169,
         131185,
         131218,
@@ -23,38 +58,31 @@ void APIENTRY Window::openglDebugOutput(
 
     if (std::ranges::find(ignoreIds, id) != ignoreIds.end()) return;
 
-    std::string srcStr = "";
-    switch (src) {
-        case GL_DEBUG_SOURCE_API: srcStr.append("Source: API"); break;
-        case GL_DEBUG_SOURCE_WINDOW_SYSTEM: srcStr.append("Source: Window System"); break;
-        case GL_DEBUG_SOURCE_SHADER_COMPILER: srcStr.append("Source: Shader Compiler"); break;
-        case GL_DEBUG_SOURCE_THIRD_PARTY: srcStr.append("Source: Third Party"); break;
-        case GL_DEBUG_SOURCE_APPLICATION: srcStr.append("Source: Application"); break;
-        case GL_DEBUG_SOURCE_OTHER: srcStr.append("Source: Other"); break;
-    }
+    const auto srcStr = DebugSourceToString(src);
+    const auto typeStr = DebugTypeToString(type);
+    const auto severityStr = DebugSeverityToString(severity);
 
-    std::string typeStr = "";
-    switch (type) {
-        case GL_DEBUG_TYPE_ERROR: typeStr.append("Type: Error"); break;
-        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: typeStr.append("Type: Deprecated Behaviour"); break;
-        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: typeStr.append("Type: Undefined Behaviour"); break;
-        case GL_DEBUG_TYPE_PORTABILITY: typeStr.append("Type: Portability"); break;
-        case GL_DEBUG_TYPE_PERFORMANCE: typeStr.append("Type: Performance"); break;
-        case GL_DEBUG_TYPE_MARKER: typeStr.append("Type: Marker"); break;
-        case GL_DEBUG_TYPE_PUSH_GROUP: typeStr.append("Type: Push Group"); break;
-        case GL_DEBUG_TYPE_POP_GROUP: typeStr.append("Type: Pop Group"); break;
-        case GL_DEBUG_TYPE_OTHER: typeStr.append("Type: Other"); break;
-    }
-
-    std::string severityStr = "";
     switch (severity) {
-        case GL_DEBUG_SEVERITY_HIGH: severityStr.append("Severity: high"); break;
-        case GL_DEBUG_SEVERITY_MEDIUM: severityStr.append("Severity: medium"); break;
-        case GL_DEBUG_SEVERITY_LOW: severityStr.append("Severity: low"); break;
-        case GL_DEBUG_SEVERITY_NOTIFICATION: severityStr.append("Severity: notification"); break;
+        case GL_DEBUG_SEVERITY_HIGH:
+            LogError(
+                "OpenGL [{}] {} / {}: {}",
+                id, srcStr, typeStr, msg
+            );
+            break;
+        case GL_DEBUG_SEVERITY_MEDIUM:
+        case GL_DEBUG_SEVERITY_LOW:
+            LogWarning(
+                "OpenGL [{}] {} / {}: {}",
+                id, srcStr, typeStr, msg
+            );
+            break;
+        case GL_DEBUG_SEVERITY_NOTIFICATION:
+            LogInfo(
+                "OpenGL [{}] {} / {}: {}",
+                id, srcStr, typeStr, msg
+            );
+            break;
     }
-
-    LogError("Source: {}\nType: {}\nSeverity: {}", srcStr, typeStr, severityStr);
 }
 
 void Window::glfwFramebufferSizeCallback(GLFWwindow* glfwWindow, int width, int height) {
@@ -100,8 +128,6 @@ Window::Window(const WindowProperties& properties)
     glFrontFace(GL_CCW);
 
     glViewport(0, 0, static_cast<int>(m_properties.Width), static_cast<int>(m_properties.Height));
-
-    stbi_set_flip_vertically_on_load(true);
 
     LogInfo("Created Window ({}x{})", m_properties.Width, m_properties.Height);
 }

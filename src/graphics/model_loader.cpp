@@ -1,6 +1,7 @@
 #include <graphics/model_loader.hpp>
 
 #include <platform/image_loading.hpp>
+#include <platform/default_resources.hpp>
 #include <graphics/vertex.hpp>
 #include <core/logging.hpp>
 
@@ -10,6 +11,8 @@
 
 #include <string_view>
 #include <utility>
+#include <string>
+#include <format>
 
 static const fastgltf::Accessor* GetAccessor(
     const fastgltf::Asset& asset,
@@ -82,27 +85,141 @@ static ImageData LoadGltfImage(
     return {};
 }
 
+static ImageData LoadGltfTextureImage(const fastgltf::Asset& asset, const fastgltf::TextureInfo& textureInfo) {
+    const auto& gltfTexture = asset.textures[textureInfo.textureIndex];
+    if (!gltfTexture.imageIndex) return {};
+
+    return LoadGltfImage(asset, asset.images[*gltfTexture.imageIndex]);
+}
+
 static std::shared_ptr<Texture> LoadGltfTexture(
     const fastgltf::Asset& asset,
     const fastgltf::TextureInfo& textureInfo,
-    TextureFormat format
+    TextureFormat format,
+    const std::filesystem::path& modelPath
 ) {
-    const auto& gltfTexture = asset.textures[textureInfo.textureIndex];
-    if (!gltfTexture.imageIndex) return nullptr;
-
-    const auto& image = asset.images[*gltfTexture.imageIndex];
-    ImageData imageData = LoadGltfImage(asset, image);
-    if (imageData.Pixels.empty()) return nullptr;
-
-    return std::make_shared<Texture>(
-        imageData,
-        format
+    std::string key = std::format(
+        "{}#texture:{}:{}",
+        modelPath.string(), textureInfo.textureIndex, static_cast<int>(format)
     );
+
+    return ResourceManager::GetOrCreateTexture(key, [&]() -> std::shared_ptr<Texture> {
+        ImageData imageData = LoadGltfTextureImage(asset, textureInfo);
+        if (imageData.Pixels.empty()) return nullptr;
+
+        return std::make_shared<Texture>(imageData, format);
+    });
+}
+
+static std::shared_ptr<Texture> LoadGltfARMTexture(
+    const fastgltf::Asset& asset,
+    const std::optional<fastgltf::OcclusionTextureInfo>& aoInfo,
+    const std::optional<fastgltf::TextureInfo>& mrInfo,
+    const std::filesystem::path& modelPath
+) {
+    const bool hasMR = mrInfo.has_value();
+    const bool hasAO = aoInfo.has_value();
+    const bool packedArm = hasMR && hasAO && mrInfo->textureIndex == aoInfo->textureIndex;
+
+    if (packedArm) return LoadGltfTexture(asset, *mrInfo, TextureFormat::RGBA8, modelPath);
+    if (!hasMR && !hasAO) return nullptr;
+
+    std::string key = std::format(
+        "{}#ARM:{}:{}",
+        modelPath.string(),
+        hasAO ? std::to_string(aoInfo->textureIndex) : "none",
+        hasMR ? std::to_string(mrInfo->textureIndex) : "none"
+    );
+
+    return ResourceManager::GetOrCreateTexture(key, [&]() -> std::shared_ptr<Texture> {
+        ImageData aoImage;
+        ImageData mrImage;
+
+        if (hasAO) aoImage = LoadGltfTextureImage(asset, *aoInfo);
+        if (hasMR) mrImage = LoadGltfTextureImage(asset, *mrInfo);
+
+        const bool aoHasPixels = !aoImage.Pixels.empty();
+        const bool mrHasPixels = !mrImage.Pixels.empty();
+
+        if (hasAO && !aoHasPixels) LogWarning("Failed to load AO texture for '{}'", modelPath.string());
+        if (hasMR && !mrHasPixels) LogWarning("Failed to load metallic-roughness texture for '{}'", modelPath.string());
+        if (!aoHasPixels && !mrHasPixels) return nullptr;
+
+        const bool isDifferentSize = aoImage.Width != mrImage.Width || aoImage.Height != mrImage.Height;
+        if (aoHasPixels && mrHasPixels && isDifferentSize) {
+            LogWarning(
+                "Cannot pack ARM textures with different sizes: {}x{} and {}x{}",
+                aoImage.Width, aoImage.Height,
+                mrImage.Width, mrImage.Height
+            );
+
+            return nullptr;
+        }
+
+        uint32_t width, height;
+        if (mrHasPixels) {
+            width = mrImage.Width;
+            height = mrImage.Height;
+        } else {
+            width = aoImage.Width;
+            height = aoImage.Height;
+        }
+
+        ImageData armImage;
+        armImage.Width = width;
+        armImage.Height = height;
+
+        const size_t pixelCount = static_cast<size_t>(width) * static_cast<size_t>(height);
+        armImage.Pixels.resize(pixelCount * 4);
+
+        for (size_t i = 0; i < pixelCount; ++i) {
+            const size_t p = i * 4;
+
+            uint8_t ao = 255;
+            uint8_t roughness = 255;
+            uint8_t metallic = 255;
+
+            if (aoHasPixels) ao = aoImage.Pixels[p + 0];
+
+            if (mrHasPixels) {
+                roughness = mrImage.Pixels[p + 1];
+                metallic = mrImage.Pixels[p + 2];
+            }
+
+            armImage.Pixels[p + 0] = ao;
+            armImage.Pixels[p + 1] = roughness;
+            armImage.Pixels[p + 2] = metallic;
+            armImage.Pixels[p + 3] = 255;
+        }
+
+        return std::make_shared<Texture>(armImage, TextureFormat::RGBA8);
+    });
+}
+
+static std::shared_ptr<Material> CreateFallbackMaterial(const std::shared_ptr<Shader>& shader) {
+    auto material = std::make_shared<Material>();
+
+    material->MaterialShader = shader;
+    material->BaseColor = Color{1.0f};
+    material->EmissiveColor = Color{0.0f, 0.0f, 0.0f};
+
+    material->Metallic = 0.0f;
+    material->Roughness = 1.0f;
+    material->NormalScale = 1.0f;
+    material->EmissiveStrength = 1.0f;
+    material->OcclusionStrength = 1.0f;
+
+    material->BaseColorTexture = DefaultResources::WhiteTexture();
+    material->ARMTexture = DefaultResources::WhiteTexture();
+    material->NormalTexture = DefaultResources::FlatNormalTexture();
+    material->EmissiveTexture = DefaultResources::WhiteTexture();
+
+    return material;
 }
 
 std::shared_ptr<Model> ModelLoader::Load(
     const std::filesystem::path& path,
-    std::shared_ptr<Material> fallbackMaterial
+    std::shared_ptr<Shader> shader
 ) {
     auto file = fastgltf::GltfDataBuffer::FromPath(path);
 
@@ -134,27 +251,57 @@ std::shared_ptr<Model> ModelLoader::Load(
         const auto& pbr = gltfMaterial.pbrData;
 
         auto material = std::make_shared<Material>();
-        material->MaterialShader = fallbackMaterial->MaterialShader;
-        material->Tint = Color {
+        material->MaterialShader = shader;
+        material->BaseColor = Color {
             pbr.baseColorFactor[0],
             pbr.baseColorFactor[1],
             pbr.baseColorFactor[2],
             pbr.baseColorFactor[3]
         };
 
-        material->Diffuse = DefaultResources::WhiteTexture();
+        material->Metallic = pbr.metallicFactor;
+        material->Roughness = pbr.roughnessFactor;
 
-        material->Specular = DefaultResources::BlackTexture();
-        material->Shininess = 32.0f;
-
-        // BASE
+        // BASE COLOR TEXTURE
         if (pbr.baseColorTexture) {
-            auto texture = LoadGltfTexture(asset, *pbr.baseColorTexture, TextureFormat::SRGBA8);
-            if (texture) material->Diffuse = std::move(texture);
+            auto texture = LoadGltfTexture(asset, *pbr.baseColorTexture, TextureFormat::SRGBA8, path);
+            if (texture) material->BaseColorTexture = std::move(texture);
+        }
+
+        // ARM TEXTURE
+        material->ARMTexture = LoadGltfARMTexture(asset, gltfMaterial.occlusionTexture, pbr.metallicRoughnessTexture, path);
+        if (gltfMaterial.occlusionTexture) material->OcclusionStrength = gltfMaterial.occlusionTexture->strength;
+
+        // NORMAL TEXTURE
+        if (gltfMaterial.normalTexture) {
+            const auto& normalInfo = *gltfMaterial.normalTexture;
+
+            auto texture = LoadGltfTexture(asset, normalInfo, TextureFormat::RGBA8, path);
+            if (texture) material->NormalTexture = std::move(texture);
+
+            material->NormalScale = normalInfo.scale;
+        }
+
+        // EMISSIVE
+        material->EmissiveColor = Color {
+            gltfMaterial.emissiveFactor[0],
+            gltfMaterial.emissiveFactor[1],
+            gltfMaterial.emissiveFactor[2],
+            1.0f
+        };
+
+        material->EmissiveStrength = gltfMaterial.emissiveStrength;
+
+        if (gltfMaterial.emissiveTexture) {
+            auto texture = LoadGltfTexture(asset, *gltfMaterial.emissiveTexture, TextureFormat::SRGBA8, path);
+            if (texture) material->EmissiveTexture = std::move(texture);
         }
 
         model->m_materials.push_back(std::move(material));
     }
+
+    const uint32_t fallbackMaterialIndex = static_cast<uint32_t>(model->m_materials.size());
+    model->m_materials.push_back(CreateFallbackMaterial(shader));
 
     // MESHES
     for (const auto& gltfMesh : asset.meshes) {
@@ -197,6 +344,15 @@ std::shared_ptr<Model> ModelLoader::Load(
                 }
             );
 
+            // TANGENT
+            ReadAttribute<glm::vec4>(
+                asset, primitive,
+                "TANGENT",
+                [&](glm::vec4 value, size_t i) {
+                    vertices[i].Tangent = value;
+                }
+            );
+
             // INDICES
             std::vector<uint32_t> indices;
             if (primitive.indicesAccessor) {
@@ -211,11 +367,14 @@ std::shared_ptr<Model> ModelLoader::Load(
                 );
             }
 
+            const uint32_t materialIndex =
+                primitive.materialIndex
+                    ? static_cast<uint32_t>(*primitive.materialIndex)
+                    : fallbackMaterialIndex;
+
             modelMesh.Primitives.push_back(ModelPrimitive{
                 .Geometry = std::make_shared<Mesh>(vertices, indices),
-                .MaterialIndex = primitive.materialIndex
-                    ? std::optional<uint32_t>{static_cast<uint32_t>(*primitive.materialIndex)}
-                    : std::nullopt
+                .MaterialIndex = materialIndex
             });
         }
 

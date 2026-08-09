@@ -1,6 +1,7 @@
 #pragma once
 
 #include <graphics/texture.hpp>
+
 #include <memory>
 
 class DefaultResources {

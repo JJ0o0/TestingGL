@@ -1,6 +1,9 @@
 #include <core/application.hpp>
+
+#include <core/resource_manager.hpp>
 #include <core/logging.hpp>
 #include <core/input.hpp>
+
 #include <platform/default_resources.hpp>
 
 #include <glad/gl.h>
@@ -44,6 +47,7 @@ int Application::Run() {
 void Application::stop() {
     if (m_game.has_value()) m_game->Destroy();
 
+    ResourceManager::Clear();
     DefaultResources::Shutdown();
     Input::Shutdown();
 

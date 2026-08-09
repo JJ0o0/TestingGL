@@ -3,13 +3,13 @@
 void Renderer::Render(
     const Scene& scene,
     const Camera& camera,
-    const AmbientLight& ambient,
-    const DirectionalLight& sun,
     const Color& clearColor
 ) {
     glClearColor(clearColor.R, clearColor.G, clearColor.B, clearColor.A);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    const auto& ambient = scene.GetAmbientLight();
+    const auto& sun = scene.GetSun();
     for (const auto& [_, obj] : scene.GetGameObjects()) {
         drawObject(obj, camera, ambient, sun);
     }
@@ -54,11 +54,8 @@ void Renderer::drawModelNode(
 
         for (const ModelPrimitive& primitive : mesh.Primitives) {
             if (!primitive.Geometry) continue;
-            if (!primitive.MaterialIndex) continue;
 
-            const auto& material = model.GetMaterials()[*primitive.MaterialIndex];
-            if (!material) continue;
-
+            const auto& material = model.GetMaterials()[primitive.MaterialIndex];
             material->Apply();
 
             auto& shader = material->MaterialShader;
