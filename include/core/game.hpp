@@ -1,5 +1,7 @@
 #pragma once
 
+#include <core/renderer.hpp>
+
 #include <platform/window.hpp>
 
 #include <graphics/shader.hpp>
@@ -21,7 +23,8 @@
 
 class Game {
     public:
-        Game(Window& window) : m_window(window) {}
+        Game(Window& window)
+            : m_window(window), m_renderer(window) {}
 
         void Initialize();
         void Update(float deltatime);
@@ -32,6 +35,7 @@ class Game {
         bool IsRunning() const { return m_running; }
     private:
         Window& m_window;
+        Renderer m_renderer;
 
         bool m_running = true;
 
@@ -55,7 +59,4 @@ class Game {
         void showInfo();
         void initResources();
         void updateCamera(float deltatime);
-
-        void drawObject(const GameObject& obj);
-        void drawModelNode(const Model& model, uint32_t nodeIndex, const glm::mat4& parentTransform);
 };

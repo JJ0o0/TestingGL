@@ -7,7 +7,7 @@ struct AmbientLight {
     float Intensity = 0.1f;
     Color Tint{1.0f};
 
-    void Apply(Shader& shader) {
+    void Apply(Shader& shader) const {
         shader.Bind();
         shader.SetFloat("uAmbient.Intensity", Intensity);
         shader.SetColor3("uAmbient.Tint", Tint);
@@ -20,7 +20,7 @@ struct DirectionalLight {
 
     glm::vec3 Direction{0.0f, -1.0f, 0.0f};
 
-    void Apply(Shader& shader) {
+    void Apply(Shader& shader) const {
         shader.Bind();
         shader.SetFloat("uDirectionalLight.Intensity", Intensity);
         shader.SetColor3("uDirectionalLight.Tint", Tint);

@@ -20,6 +20,7 @@ add_executable(${CMAKE_PROJECT_NAME}
     "src/core/application.cpp"
     "src/core/game.cpp"
     "src/core/input.cpp"
+    "src/core/renderer.cpp"
 
     "src/graphics/camera.cpp"
     "src/graphics/mesh.cpp"

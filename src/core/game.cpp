@@ -34,12 +34,12 @@ void Game::Update(float deltatime) {
 }
 
 void Game::Render() {
-    glClearColor(m_clearColor.R, m_clearColor.G, m_clearColor.B, m_clearColor.A);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    for (const auto& [_, obj] : m_scene.GetGameObjects()) {
-        drawObject(obj);
-    }
+    m_renderer.Render(
+        m_scene,
+        m_camera,
+        m_ambient, m_sun,
+        m_clearColor
+    );
 }
 
 void Game::Destroy() {
@@ -125,49 +125,4 @@ void Game::updateCamera(float deltatime) {
 
     m_camera.SetPosition(newPosition);
     m_camera.LookAt(target);
-}
-
-void Game::drawObject(const GameObject& obj) {
-    if (!obj.GetModel()) return;
-
-    const auto& model = obj.GetModel();
-    const glm::mat4 rootTransform = obj.GetTransform().GetModelMatrix();
-
-    for (uint32_t rootNode : model->GetRootNodes()) {
-        drawModelNode(*model, rootNode, rootTransform);
-    }
-}
-
-void Game::drawModelNode(const Model& model, uint32_t nodeIndex, const glm::mat4& parentTransform) {
-    const ModelNode& node = model.GetNodes()[nodeIndex];
-    const glm::mat4 modelMatrix = parentTransform * node.LocalTransform.GetModelMatrix();
-
-    if (node.MeshIndex) {
-        const ModelMesh& mesh = model.GetMeshes()[*node.MeshIndex];
-
-        for (const ModelPrimitive& primitive : mesh.Primitives) {
-            if (!primitive.Geometry) continue;
-            if (!primitive.MaterialIndex) continue;
-
-            const auto& material = model.GetMaterials()[*primitive.MaterialIndex];
-            if (!material) continue;
-
-            material->Apply();
-
-            auto& shader = material->MaterialShader;
-            shader->SetMat4("uModel", modelMatrix);
-            shader->SetMat4("uView", m_camera.GetView());
-            shader->SetMat4("uProjection", m_camera.GetProjection(m_window.GetAspectRatio()));
-            shader->SetVec3("uCameraPosition", m_camera.GetPosition());
-
-            m_ambient.Apply(*shader);
-            m_sun.Apply(*shader);
-
-            primitive.Geometry->Draw();
-        }
-    }
-
-    for (uint32_t childIndex : node.Children) {
-        drawModelNode(model, childIndex, modelMatrix);
-    }
 }
