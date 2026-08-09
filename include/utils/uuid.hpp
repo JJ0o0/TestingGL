@@ -7,7 +7,9 @@
 #include <random>
 #include <array>
 
-inline uuids::uuid GenerateUUID() {
+using UUID = uuids::uuid;
+
+inline UUID GenerateUUID() {
     static std::random_device rd;
     static std::array<int, std::mt19937::state_size> seedData = [] {
         std::array<int, std::mt19937::state_size> data{};
@@ -23,6 +25,6 @@ inline uuids::uuid GenerateUUID() {
     return generator();
 }
 
-inline std::string UUIDToString(const uuids::uuid& uuid) {
+inline std::string UUIDToString(const UUID& uuid) {
     return uuids::to_string(uuid);
 }

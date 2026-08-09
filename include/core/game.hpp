@@ -13,6 +13,9 @@
 
 #include <world/gameobject.hpp>
 #include <world/transform.hpp>
+#include <world/scene.hpp>
+
+#include <utils/uuid.hpp>
 
 #include <memory>
 
@@ -46,7 +49,8 @@ class Game {
         std::shared_ptr<Shader> m_shader;
         std::shared_ptr<Model> m_model;
 
-        std::unique_ptr<GameObject> m_cube;
+        Scene m_scene;
+        UUID m_cubeUUID;
 
         void showInfo();
         void initResources();

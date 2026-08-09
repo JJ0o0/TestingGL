@@ -29,6 +29,9 @@ add_executable(${CMAKE_PROJECT_NAME}
 
     "src/platform/window.cpp"
     "src/platform/default_resources.cpp"
+
+    "src/world/gameobject.cpp"
+    "src/world/scene.cpp"
 )
 
 copy_assets(TestingGL)

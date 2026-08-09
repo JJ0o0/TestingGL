@@ -37,11 +37,14 @@ void Game::Render() {
     glClearColor(m_clearColor.R, m_clearColor.G, m_clearColor.B, m_clearColor.A);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    drawObject(*m_cube);
+    for (const auto& [_, obj] : m_scene.GetGameObjects()) {
+        drawObject(obj);
+    }
 }
 
 void Game::Destroy() {
-    m_cube.reset();
+    m_scene.Clear();
+
     m_model.reset();
     m_shader.reset();
 }
@@ -69,18 +72,11 @@ void Game::initResources() {
         return;
     }
 
-    m_cube = std::make_unique<GameObject>("Cube");
-    m_cube->SetModel(m_model);
-    m_cube->GetTransform().Scale *= 0.05f;
+    GameObject& cube = m_scene.CreateGameObject("Cube");
+    cube.SetModel(m_model);
+    cube.GetTransform().Scale *= 0.005f;
 
-    // MOSTRANDO INFORMAÇÕES DO OBJETO SÓ PRA TESTAR
-    LogInfo("'{}' criado com UUID '{}'!", m_cube->GetName(), UUIDToString(m_cube->GetUUID()));
-
-    std::string oldName = m_cube->GetName();
-    m_cube->SetName("Cube 2.0");
-
-    LogInfo("Objeto com UUID '{}' trocou o nome de '{}' para '{}'!", UUIDToString(m_cube->GetUUID()), oldName, m_cube->GetName());
-
+    m_cubeUUID = cube.GetUUID();
 }
 
 void Game::updateCamera(float deltatime) {
@@ -109,7 +105,10 @@ void Game::updateCamera(float deltatime) {
     const float yaw = glm::radians(m_cameraYaw);
     const float pitch = glm::radians(m_cameraPitch);
 
-    const glm::vec3 target = m_cube->GetTransform().Position;
+    const GameObject* targetObj = m_scene.GetGameObject(m_cubeUUID);
+    if (!targetObj) return;
+
+    const glm::vec3 target = targetObj->GetTransform().Position;
 
     glm::vec3 offset {
         m_cameraDistance * glm::cos(pitch) * glm::sin(yaw),
