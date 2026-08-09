@@ -25,7 +25,6 @@ void Game::Initialize() {
 
     initResources();
 
-    m_cube->ObjectTransform.Scale *= 0.05f;
     m_camera.SetPosition({0.0f, 0.0f, 6.0f});
     m_sun.Direction = {-0.3f, -1.0f, -0.4f};
 }
@@ -70,9 +69,18 @@ void Game::initResources() {
         return;
     }
 
-    m_cube = std::make_unique<GameObject>(GameObject{
-        .ObjectModel = m_model
-    });
+    m_cube = std::make_unique<GameObject>("Cube");
+    m_cube->SetModel(m_model);
+    m_cube->GetTransform().Scale *= 0.05f;
+
+    // MOSTRANDO INFORMAÇÕES DO OBJETO SÓ PRA TESTAR
+    LogInfo("'{}' criado com UUID '{}'!", m_cube->GetName(), UUIDToString(m_cube->GetUUID()));
+
+    std::string oldName = m_cube->GetName();
+    m_cube->SetName("Cube 2.0");
+
+    LogInfo("Objeto com UUID '{}' trocou o nome de '{}' para '{}'!", UUIDToString(m_cube->GetUUID()), oldName, m_cube->GetName());
+
 }
 
 void Game::updateCamera(float deltatime) {
@@ -101,7 +109,7 @@ void Game::updateCamera(float deltatime) {
     const float yaw = glm::radians(m_cameraYaw);
     const float pitch = glm::radians(m_cameraPitch);
 
-    const glm::vec3 target = m_cube->ObjectTransform.Position;
+    const glm::vec3 target = m_cube->GetTransform().Position;
 
     glm::vec3 offset {
         m_cameraDistance * glm::cos(pitch) * glm::sin(yaw),
@@ -121,12 +129,13 @@ void Game::updateCamera(float deltatime) {
 }
 
 void Game::drawObject(const GameObject& obj) {
-    if (!obj.ObjectModel) return;
+    if (!obj.GetModel()) return;
 
-    const glm::mat4 rootTransform = obj.ObjectTransform.GetModelMatrix();
+    const auto& model = obj.GetModel();
+    const glm::mat4 rootTransform = obj.GetTransform().GetModelMatrix();
 
-    for (uint32_t rootNode : obj.ObjectModel->GetRootNodes()) {
-        drawModelNode(*obj.ObjectModel, rootNode, rootTransform);
+    for (uint32_t rootNode : model->GetRootNodes()) {
+        drawModelNode(*model, rootNode, rootTransform);
     }
 }
 

@@ -44,6 +44,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         glfw
         glm::glm
         fastgltf::fastgltf
+        stduuid
 )
 
 set_target_properties(${CMAKE_PROJECT_NAME}

@@ -29,8 +29,19 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
 )
 
+# STDUUID
+set(UUID_USING_CXX20_SPAN ON CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+    stduuid
+    GIT_REPOSITORY https://github.com/mariusbancila/stduuid.git
+    GIT_TAG v1.2.3
+    GIT_SHALLOW TRUE
+)
+
 FetchContent_MakeAvailable(
     glfw
     glm
     fastgltf
+    stduuid
 )
