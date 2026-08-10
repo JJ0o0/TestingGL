@@ -3,28 +3,30 @@
 void Renderer::Render(
     const Scene& scene,
     const Camera& camera,
-    const Color& clearColor,
-    const Cubemap& environmentMap,
-    const Cubemap& irradianceMap,
-    const Cubemap& prefilterMap,
-    const Texture& brdfLUT
+    const Color& clearColor
 ) {
     glClearColor(clearColor.R, clearColor.G, clearColor.B, clearColor.A);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    irradianceMap.Bind(4);
-    prefilterMap.Bind(5);
-    brdfLUT.Bind(6);
+    const auto& environment = scene.GetEnvironment();
+    if (environment) {
+        environment->Irradiance->Bind(4);
+        environment->Prefilter->Bind(5);
+    }
+
+    m_brdfLUT->Bind(6);
 
     const auto& sun = scene.GetSun();
     for (const auto& [_, obj] : scene.GetGameObjects()) {
         drawObject(obj, camera, sun);
     }
 
-    drawSkybox(environmentMap, camera);
+    if (environment) drawSkybox(*environment->Skybox, camera);
 }
 
 void Renderer::Destroy() {
+    m_brdfLUT.reset();
+    m_pbrShader.reset();
     m_skyboxShader.reset();
     m_skyboxMesh.reset();
 }
@@ -67,18 +69,19 @@ void Renderer::drawModelNode(
             if (!primitive.Geometry) continue;
 
             const auto& material = model.GetMaterials()[primitive.MaterialIndex];
-            material->Apply();
 
-            auto& shader = material->MaterialShader;
-            shader->SetMat4("uModel", modelMatrix);
-            shader->SetMat4("uView", camera.GetView());
-            shader->SetMat4("uProjection",camera.GetProjection(m_window.GetAspectRatio()));
-            shader->SetVec3("uCameraPosition", camera.GetPosition());
-            shader->SetInt("uIrradianceMap", 4);
-            shader->SetInt("uPrefilterMap", 5);
-            shader->SetInt("uBRDFLUT", 6);
+            m_pbrShader->Bind();
+            material->Apply(*m_pbrShader);
 
-            sun.Apply(*shader);
+            m_pbrShader->SetMat4("uModel", modelMatrix);
+            m_pbrShader->SetMat4("uView", camera.GetView());
+            m_pbrShader->SetMat4("uProjection",camera.GetProjection(m_window.GetAspectRatio()));
+            m_pbrShader->SetVec3("uCameraPosition", camera.GetPosition());
+            m_pbrShader->SetInt("uIrradianceMap", 4);
+            m_pbrShader->SetInt("uPrefilterMap", 5);
+            m_pbrShader->SetInt("uBRDFLUT", 6);
+
+            sun.Apply(*m_pbrShader);
 
             primitive.Geometry->Draw();
         }

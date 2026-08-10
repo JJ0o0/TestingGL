@@ -17,6 +17,12 @@
 #include <memory>
 #include <array>
 
+struct Environment {
+    std::shared_ptr<Cubemap> Skybox;
+    std::shared_ptr<Cubemap> Irradiance;
+    std::shared_ptr<Cubemap> Prefilter;
+};
+
 inline std::shared_ptr<Cubemap> CreateEnvironmentCubemap(const Texture& equirectangularHDR, uint32_t size = 512) {
     auto cubemap = std::make_shared<Cubemap>(size, GL_RGB16F, GL_RGB, GL_FLOAT, true);
 
@@ -329,4 +335,18 @@ inline std::shared_ptr<Texture> CreateBRDFLUT(uint32_t size = 512) {
     glDeleteFramebuffers(1, &captureFBO);
 
     return brdfLUT;
+}
+
+inline std::shared_ptr<Environment> CreateEnvironment(
+    const Texture& equirectangularHDR,
+    uint32_t environmentSize = 512,
+    uint32_t irradianceSize = 32,
+    uint32_t prefilterSize = 128
+) {
+    auto environment = std::make_shared<Environment>();
+    environment->Skybox = CreateEnvironmentCubemap(equirectangularHDR, environmentSize);
+    environment->Irradiance = CreateIrradianceCubemap(*environment->Skybox, irradianceSize);
+    environment->Prefilter = CreatePrefilteredEnvironmentCubemap(*environment->Skybox, prefilterSize);
+
+    return environment;
 }

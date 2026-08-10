@@ -104,7 +104,7 @@ static std::shared_ptr<Texture> LoadGltfTexture(
         modelPath.string(), textureInfo.textureIndex, static_cast<int>(format)
     );
 
-    return ResourceManager::GetOrCreateTexture(key, [&]() -> std::shared_ptr<Texture> {
+    return ResourceManager::GetOrCreate<Texture>(key, [&]() -> std::shared_ptr<Texture> {
         ImageData imageData = LoadGltfTextureImage(asset, textureInfo);
         if (imageData.Pixels.empty()) return nullptr;
 
@@ -132,7 +132,7 @@ static std::shared_ptr<Texture> LoadGltfARMTexture(
         hasMR ? std::to_string(mrInfo->textureIndex) : "none"
     );
 
-    return ResourceManager::GetOrCreateTexture(key, [&]() -> std::shared_ptr<Texture> {
+    return ResourceManager::GetOrCreate<Texture>(key, [&]() -> std::shared_ptr<Texture> {
         ImageData aoImage;
         ImageData mrImage;
 
@@ -197,10 +197,9 @@ static std::shared_ptr<Texture> LoadGltfARMTexture(
     });
 }
 
-static std::shared_ptr<Material> CreateFallbackMaterial(const std::shared_ptr<Shader>& shader) {
+static std::shared_ptr<Material> CreateFallbackMaterial() {
     auto material = std::make_shared<Material>();
 
-    material->MaterialShader = shader;
     material->BaseColor = Color{1.0f};
     material->EmissiveColor = Color{0.0f, 0.0f, 0.0f};
 
@@ -218,10 +217,7 @@ static std::shared_ptr<Material> CreateFallbackMaterial(const std::shared_ptr<Sh
     return material;
 }
 
-std::shared_ptr<Model> ModelLoader::Load(
-    const std::filesystem::path& path,
-    std::shared_ptr<Shader> shader
-) {
+std::shared_ptr<Model> ModelLoader::Load(const std::filesystem::path& path) {
     auto file = fastgltf::GltfDataBuffer::FromPath(path);
 
     if (file.error() != fastgltf::Error::None) {
@@ -252,7 +248,6 @@ std::shared_ptr<Model> ModelLoader::Load(
         const auto& pbr = gltfMaterial.pbrData;
 
         auto material = std::make_shared<Material>();
-        material->MaterialShader = shader;
         material->BaseColor = Color {
             pbr.baseColorFactor[0],
             pbr.baseColorFactor[1],
@@ -302,7 +297,7 @@ std::shared_ptr<Model> ModelLoader::Load(
     }
 
     const uint32_t fallbackMaterialIndex = static_cast<uint32_t>(model->m_materials.size());
-    model->m_materials.push_back(CreateFallbackMaterial(shader));
+    model->m_materials.push_back(CreateFallbackMaterial());
 
     // MESHES
     for (const auto& gltfMesh : asset.meshes) {

@@ -1,11 +1,15 @@
 #pragma once
 
+#include <graphics/environment.hpp>
 #include <graphics/light.hpp>
+
 #include <world/gameobject.hpp>
+
 #include <utils/uuid.hpp>
 
 #include <unordered_map>
 #include <string>
+#include <memory>
 
 class Scene {
     public:
@@ -26,9 +30,15 @@ class Scene {
         DirectionalLight& GetSun() { return m_sun; }
         const DirectionalLight& GetSun() const { return m_sun; }
 
+        void SetEnvironment(std::shared_ptr<Environment> environment) { m_environment = std::move(environment);}
+        Environment* GetEnvironment() { return m_environment.get(); }
+        const Environment* GetEnvironment() const { return m_environment.get(); }
+
         void Clear();
     private:
         std::unordered_map<UUID, GameObject> m_gameObjects;
+
+        std::shared_ptr<Environment> m_environment;
 
         AmbientLight m_ambientLight{};
         DirectionalLight m_sun{};

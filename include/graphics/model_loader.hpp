@@ -8,8 +8,5 @@
 
 class ModelLoader {
     public:
-        static std::shared_ptr<Model> Load(
-            const std::filesystem::path& path,
-            std::shared_ptr<Shader> shader
-        );
+        static std::shared_ptr<Model> Load(const std::filesystem::path& path);
 };

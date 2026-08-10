@@ -1,33 +1,24 @@
 #pragma once
 
-#include <graphics/texture.hpp>
+#include <core/resource_cache.hpp>
 
-#include <unordered_map>
-#include <utility>
-#include <string>
+#include <graphics/texture.hpp>
+#include <graphics/model.hpp>
+#include <graphics/environment.hpp>
+
+#include <filesystem>
 #include <memory>
 
 class ResourceManager {
     public:
-        static std::shared_ptr<Texture> GetTexture(const std::string& key);
-
-        template<typename Factory>
-        static std::shared_ptr<Texture> GetOrCreateTexture(std::string key, Factory&& factory) {
-            if (auto it = s_textures.find(key); it != s_textures.end()) return it->second;
-
-            auto texture = std::forward<Factory>(factory)();
-            if (!texture) return nullptr;
-
-            s_textures.emplace(std::move(key), texture);
-            return texture;
+        template<typename T, typename Factory>
+        static std::shared_ptr<T> GetOrCreate(std::string key, Factory&& factory) {
+            return ResourceCache<T>::GetOrCreate(std::move(key), std::forward<Factory>(factory));
         }
 
-        static bool HasTexture(const std::string& key);
-        static bool RemoveTexture(const std::string& key);
-
-        static size_t GetTextureCount();
+        static std::shared_ptr<Texture> LoadTexture(const std::filesystem::path& path);
+        static std::shared_ptr<Model> LoadModel(const std::filesystem::path& path);
+        static std::shared_ptr<Environment> LoadEnvironment(const std::filesystem::path& path);
 
         static void Clear();
-    private:
-        static std::unordered_map<std::string, std::shared_ptr<Texture>> s_textures;
 };

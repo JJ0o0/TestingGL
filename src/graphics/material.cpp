@@ -5,26 +5,20 @@
 
 #include <algorithm>
 
-void Material::Apply() const {
-    if (!MaterialShader) {
-        LogError("Tried to apply material without a shader!");
-        return;
-    }
+void Material::Apply(Shader& shader) const {
+    shader.SetColor("uMaterial.BaseColor", BaseColor);
+    shader.SetColor("uMaterial.EmissiveColor", EmissiveColor);
 
-    MaterialShader->Bind();
-    MaterialShader->SetColor("uMaterial.BaseColor", BaseColor);
-    MaterialShader->SetColor("uMaterial.EmissiveColor", EmissiveColor);
+    shader.SetFloat("uMaterial.Metallic", std::clamp(Metallic, 0.0f, 1.0f));
+    shader.SetFloat("uMaterial.Roughness", std::clamp(Roughness, 0.0f, 1.0f));
+    shader.SetFloat("uMaterial.NormalScale", NormalScale);
+    shader.SetFloat("uMaterial.EmissiveStrength", EmissiveStrength);
+    shader.SetFloat("uMaterial.OcclusionStrength", OcclusionStrength);
 
-    MaterialShader->SetFloat("uMaterial.Metallic", std::clamp(Metallic, 0.0f, 1.0f));
-    MaterialShader->SetFloat("uMaterial.Roughness", std::clamp(Roughness, 0.0f, 1.0f));
-    MaterialShader->SetFloat("uMaterial.NormalScale", NormalScale);
-    MaterialShader->SetFloat("uMaterial.EmissiveStrength", EmissiveStrength);
-    MaterialShader->SetFloat("uMaterial.OcclusionStrength", OcclusionStrength);
-
-    MaterialShader->SetInt("uBaseColorTexture", 0);
-    MaterialShader->SetInt("uARMTexture", 1);
-    MaterialShader->SetInt("uNormalTexture", 2);
-    MaterialShader->SetInt("uEmissiveTexture", 3);
+    shader.SetInt("uBaseColorTexture", 0);
+    shader.SetInt("uARMTexture", 1);
+    shader.SetInt("uNormalTexture", 2);
+    shader.SetInt("uEmissiveTexture", 3);
 
     if (BaseColorTexture) BaseColorTexture->Bind(0);
     else DefaultResources::WhiteTexture()->Bind(0);

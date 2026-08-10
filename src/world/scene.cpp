@@ -27,5 +27,6 @@ bool Scene::DestroyGameObject(const UUID& uuid) {
 }
 
 void Scene::Clear() {
+    m_environment.reset();
     m_gameObjects.clear();
 }

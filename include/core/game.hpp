@@ -4,6 +4,7 @@
 
 #include <platform/window.hpp>
 
+#include <graphics/environment.hpp>
 #include <graphics/material.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/cubemap.hpp>
@@ -48,11 +49,6 @@ class Game {
         float m_targetCameraDistance = 6.0f;
         Camera m_camera{};
 
-        std::shared_ptr<Shader> m_shader;
-        std::shared_ptr<Cubemap> m_environmentMap;
-        std::shared_ptr<Cubemap> m_irradianceMap;
-        std::shared_ptr<Cubemap> m_prefilterMap;
-        std::shared_ptr<Texture> m_brdfLUT;
         std::shared_ptr<Model> m_model;
 
         Scene m_scene;

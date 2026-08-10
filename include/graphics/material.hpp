@@ -21,7 +21,5 @@ struct Material {
     std::shared_ptr<Texture> NormalTexture;
     std::shared_ptr<Texture> EmissiveTexture;
 
-    std::shared_ptr<Shader> MaterialShader;
-
-    void Apply() const;
+    void Apply(Shader& shader) const;
 };

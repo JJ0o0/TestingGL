@@ -1,18 +1,40 @@
 #include <core/resource_manager.hpp>
 
-std::unordered_map<std::string, std::shared_ptr<Texture>> ResourceManager::s_textures;
+#include <graphics/model_loader.hpp>
+#include <graphics/environment.hpp>
 
-std::shared_ptr<Texture> ResourceManager::GetTexture(const std::string& key) {
-    const auto it = s_textures.find(key);
-    if (it == s_textures.end()) return nullptr;
+#include <platform/image_loading.hpp>
 
-    return it->second;
+std::shared_ptr<Texture> ResourceManager::LoadTexture(const std::filesystem::path& path) {
+    const std::string key = path.lexically_normal().string();
+
+    return ResourceCache<Texture>::GetOrCreate(key, [&]() {
+        return std::make_shared<Texture>(path);
+    });
 }
 
-bool ResourceManager::HasTexture(const std::string &key) { return s_textures.contains(key); }
-bool ResourceManager::RemoveTexture(const std::string &key) { return s_textures.erase(key) > 0; }
-size_t ResourceManager::GetTextureCount() { return s_textures.size(); }
+std::shared_ptr<Model> ResourceManager::LoadModel(const std::filesystem::path& path) {
+    const std::string key = path.lexically_normal().string();
+
+    return ResourceCache<Model>::GetOrCreate(key, [&]() {
+        return ModelLoader::Load(path);
+    });
+}
+
+std::shared_ptr<Environment>
+ResourceManager::LoadEnvironment(const std::filesystem::path& path) {
+    const std::string key = path.lexically_normal().string();
+
+    return ResourceCache<Environment>::GetOrCreate(key, [&]() {
+        HDRImageData hdr = LoadHDRImage(path, true);
+        Texture hdrTexture(hdr);
+
+        return CreateEnvironment(hdrTexture);
+    });
+}
 
 void ResourceManager::Clear() {
-    s_textures.clear();
+    ResourceCache<Environment>::Clear();
+    ResourceCache<Model>::Clear();
+    ResourceCache<Texture>::Clear();
 }

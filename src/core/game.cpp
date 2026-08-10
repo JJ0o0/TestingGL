@@ -34,24 +34,12 @@ void Game::Update(float deltatime) {
 }
 
 void Game::Render() {
-    m_renderer.Render(
-        m_scene, m_camera,
-        m_clearColor,
-        *m_environmentMap, *m_irradianceMap, *m_prefilterMap, *m_brdfLUT
-    );
+    m_renderer.Render(m_scene, m_camera, m_clearColor);
 }
 
 void Game::Destroy() {
     m_scene.Clear();
-
-    m_brdfLUT.reset();
-    m_prefilterMap.reset();
-    m_irradianceMap.reset();
-    m_environmentMap.reset();
-
     m_model.reset();
-    m_shader.reset();
-
     m_renderer.Destroy();
 }
 
@@ -65,17 +53,9 @@ void Game::showInfo() {
 }
 
 void Game::initResources() {
-    m_shader = std::make_shared<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
+    m_scene.SetEnvironment(ResourceManager::LoadEnvironment("assets/hdr/studio.hdr"));
 
-    HDRImageData hdr = LoadHDRImage("assets/hdr/sky.hdr", true);
-    auto hdrTexture = std::make_shared<Texture>(hdr);
-
-    m_environmentMap = CreateEnvironmentCubemap(*hdrTexture, 512);
-    m_irradianceMap = CreateIrradianceCubemap(*m_environmentMap, 32);
-    m_prefilterMap = CreatePrefilteredEnvironmentCubemap(*m_environmentMap, 128);
-    m_brdfLUT = CreateBRDFLUT(512);
-
-    m_model = ModelLoader::Load("assets/models/damaged_helmet.glb", m_shader);
+    m_model = ResourceManager::LoadModel("assets/models/damaged_helmet.glb");
     if (!m_model) {
         LogError("Failed to load test model");
         return;

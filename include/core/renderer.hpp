@@ -3,11 +3,14 @@
 #include <platform/window.hpp>
 
 #include <graphics/premade_meshes/cube.hpp>
+#include <graphics/environment.hpp>
 #include <graphics/cubemap.hpp>
+#include <graphics/texture.hpp>
 #include <graphics/camera.hpp>
 #include <graphics/light.hpp>
 #include <graphics/color.hpp>
 #include <graphics/model.hpp>
+#include <graphics/shader.hpp>
 
 #include <world/gameobject.hpp>
 #include <world/scene.hpp>
@@ -17,18 +20,18 @@ class Renderer {
         Renderer(Window& window) : m_window(window) {
             m_skyboxMesh = CreateCubemapCube();
 
+            m_pbrShader = std::make_shared<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
+
             m_skyboxShader = std::make_shared<Shader>("assets/shaders/skybox.vert", "assets/shaders/skybox.frag");
             m_skyboxShader->SetInt("uEnvironmentMap", 0);
+
+            m_brdfLUT = CreateBRDFLUT(512);
         }
 
         void Render(
             const Scene& scene,
             const Camera& camera,
-            const Color& clearColor,
-            const Cubemap& environmentMap,
-            const Cubemap& irradianceMap,
-            const Cubemap& prefilterMap,
-            const Texture& brdfLUT
+            const Color& clearColor
         );
 
         void Destroy();
@@ -36,7 +39,11 @@ class Renderer {
         Window& m_window;
 
         std::shared_ptr<Mesh> m_skyboxMesh;
+
+        std::shared_ptr<Shader> m_pbrShader;
         std::shared_ptr<Shader> m_skyboxShader;
+
+        std::shared_ptr<Texture> m_brdfLUT;
 
         void drawObject(
             const GameObject& object,
