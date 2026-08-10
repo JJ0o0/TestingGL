@@ -67,7 +67,7 @@ void Game::showInfo() {
 void Game::initResources() {
     m_shader = std::make_shared<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
 
-    HDRImageData hdr = LoadHDRImage("assets/hdr/environment.hdr", true);
+    HDRImageData hdr = LoadHDRImage("assets/hdr/sky.hdr", true);
     auto hdrTexture = std::make_shared<Texture>(hdr);
 
     m_environmentMap = CreateEnvironmentCubemap(*hdrTexture, 512);

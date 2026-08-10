@@ -30,6 +30,7 @@ add_executable(${CMAKE_PROJECT_NAME}
     "src/graphics/model_loader.cpp"
     "src/graphics/material.cpp"
     "src/graphics/cubemap.cpp"
+    "src/graphics/tangent_generation.cpp"
 
     "src/platform/window.cpp"
     "src/platform/default_resources.cpp"
@@ -52,6 +53,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         glm::glm
         fastgltf::fastgltf
         stduuid
+        mikktspace
 )
 
 set_target_properties(${CMAKE_PROJECT_NAME}

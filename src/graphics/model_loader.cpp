@@ -1,4 +1,5 @@
 #include <graphics/model_loader.hpp>
+#include <graphics/tangent_generation.hpp>
 
 #include <platform/image_loading.hpp>
 #include <platform/default_resources.hpp>
@@ -345,13 +346,16 @@ std::shared_ptr<Model> ModelLoader::Load(
             );
 
             // TANGENT
-            ReadAttribute<glm::vec4>(
-                asset, primitive,
-                "TANGENT",
-                [&](glm::vec4 value, size_t i) {
-                    vertices[i].Tangent = value;
-                }
-            );
+            const bool hasTangents = GetAccessor(asset, primitive, "TANGENT") != nullptr;
+            if (hasTangents) {
+                ReadAttribute<glm::vec4>(
+                    asset, primitive,
+                    "TANGENT",
+                    [&](glm::vec4 value, size_t i) {
+                        vertices[i].Tangent = value;
+                    }
+                );
+            }
 
             // INDICES
             std::vector<uint32_t> indices;
@@ -365,6 +369,13 @@ std::shared_ptr<Model> ModelLoader::Load(
                         indices[i] = value;
                     }
                 );
+            }
+
+            const bool hasUVs = GetAccessor(asset, primitive, "TEXCOORD_0") != nullptr;
+            const bool hasNormals = GetAccessor(asset, primitive, "NORMAL") != nullptr;
+            if (!hasTangents && hasUVs && hasNormals) {
+                LogInfo("Generating tangents for mesh without TANGENT attribute");
+                GenerateTangents(vertices, indices);
             }
 
             const uint32_t materialIndex =

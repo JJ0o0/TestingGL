@@ -46,7 +46,7 @@ void main() {
 
     vec3 diffuseIBL = CalculateDiffuseIBL(
         irradiance,
-        baseColor.rgb, metallic,
+        baseColor.rgb, metallic, roughness,
         N, V
     );
 

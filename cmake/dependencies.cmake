@@ -39,9 +39,27 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
 )
 
+# MIKKTSPACE
+FetchContent_Declare(
+    mikktspace
+    GIT_REPOSITORY https://github.com/mmikk/MikkTSpace.git
+    GIT_TAG master
+)
+
 FetchContent_MakeAvailable(
     glfw
     glm
     fastgltf
     stduuid
+    mikktspace
+)
+
+# MIKKTSPACE LIB
+add_library(mikktspace STATIC
+    ${mikktspace_SOURCE_DIR}/mikktspace.c
+)
+
+target_include_directories(mikktspace
+    PUBLIC
+        ${mikktspace_SOURCE_DIR}
 )
