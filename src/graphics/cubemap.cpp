@@ -33,14 +33,17 @@ Cubemap::Cubemap(uint32_t size, int internalFormat, int format, int type, bool m
 Cubemap::~Cubemap() { if (m_id) glDeleteTextures(1, &m_id); }
 
 Cubemap::Cubemap(Cubemap&& other) noexcept
-    : m_id(std::exchange(other.m_id, 0)) {
+    : m_id(std::exchange(other.m_id, 0)),
+      m_size(std::exchange(other.m_size, 0)) {
 }
 
 Cubemap& Cubemap::operator=(Cubemap&& other) noexcept {
     if (this == &other) return *this;
 
     if (m_id) glDeleteTextures(1, &m_id);
+
     m_id = std::exchange(other.m_id, 0);
+    m_size = std::exchange(other.m_size, 0);
 
     return *this;
 }

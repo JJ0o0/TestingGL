@@ -191,9 +191,6 @@ inline std::shared_ptr<Cubemap> CreateIrradianceCubemap(const Cubemap& environme
 inline std::shared_ptr<Cubemap> CreatePrefilteredEnvironmentCubemap(const Cubemap& environmentMap, uint32_t size = 128) {
     auto prefilterMap = std::make_shared<Cubemap>(size, GL_RGB16F, GL_RGB, GL_FLOAT, true);
 
-    glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap->GetID());
-    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
-
     uint32_t captureFBO = 0, captureRBO = 0;
 
     glGenFramebuffers(1, &captureFBO);
@@ -201,6 +198,8 @@ inline std::shared_ptr<Cubemap> CreatePrefilteredEnvironmentCubemap(const Cubema
 
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
     glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
 
     const glm::mat4 captureProjection = glm::perspective(
         glm::radians(90.0f),
