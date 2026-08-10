@@ -225,7 +225,7 @@ std::shared_ptr<Model> ModelLoader::Load(const std::filesystem::path& path) {
         return nullptr;
     }
 
-    fastgltf::Parser parser;
+    fastgltf::Parser parser(fastgltf::Extensions::KHR_materials_unlit);
 
     constexpr auto options = fastgltf::Options::LoadExternalBuffers |
                              fastgltf::Options::LoadExternalImages |
@@ -248,15 +248,13 @@ std::shared_ptr<Model> ModelLoader::Load(const std::filesystem::path& path) {
         const auto& pbr = gltfMaterial.pbrData;
 
         auto material = std::make_shared<Material>();
+        material->Type = gltfMaterial.unlit ? MaterialType::Unlit : MaterialType::PBR;
         material->BaseColor = Color {
             pbr.baseColorFactor[0],
             pbr.baseColorFactor[1],
             pbr.baseColorFactor[2],
             pbr.baseColorFactor[3]
         };
-
-        material->Metallic = pbr.metallicFactor;
-        material->Roughness = pbr.roughnessFactor;
 
         // BASE COLOR TEXTURE
         if (pbr.baseColorTexture) {
@@ -265,6 +263,8 @@ std::shared_ptr<Model> ModelLoader::Load(const std::filesystem::path& path) {
         }
 
         // ARM TEXTURE
+        material->Metallic = pbr.metallicFactor;
+        material->Roughness = pbr.roughnessFactor;
         material->ARMTexture = LoadGltfARMTexture(asset, gltfMaterial.occlusionTexture, pbr.metallicRoughnessTexture, path);
         if (gltfMaterial.occlusionTexture) material->OcclusionStrength = gltfMaterial.occlusionTexture->strength;
 

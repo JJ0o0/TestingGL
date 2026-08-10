@@ -6,7 +6,14 @@
 
 #include <memory>
 
+enum class MaterialType {
+    PBR,
+    Unlit
+};
+
 struct Material {
+    MaterialType Type = MaterialType::PBR;
+
     Color BaseColor{1.0f};
     Color EmissiveColor{0.0f, 0.0f, 0.0f, 1.0f};
 

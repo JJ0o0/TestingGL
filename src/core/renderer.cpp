@@ -58,6 +58,7 @@ Renderer::Renderer(Window& window) : m_window(window) {
     m_screenQuad = CreateScreenQuad();
 
     m_pbrShader = std::make_shared<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
+    m_unlitShader = std::make_shared<Shader>("assets/shaders/unlit.vert", "assets/shaders/unlit.frag");
 
     m_skyboxShader = std::make_shared<Shader>("assets/shaders/skybox.vert", "assets/shaders/skybox.frag");
     m_skyboxShader->SetInt("uEnvironmentMap", 0);
@@ -119,6 +120,7 @@ void Renderer::Destroy() {
     m_brdfLUT.reset();
 
     m_postProcessShader.reset();
+    m_unlitShader.reset();
     m_pbrShader.reset();
     m_skyboxShader.reset();
 
@@ -126,6 +128,15 @@ void Renderer::Destroy() {
     m_skyboxMesh.reset();
 
     m_hdrFramebuffer.reset();
+}
+
+Shader& Renderer::getShaderForMaterial(const Material& material) {
+    switch (material.Type) {
+        case MaterialType::PBR: return *m_pbrShader;
+        case MaterialType::Unlit: return *m_unlitShader;
+    }
+
+    return *m_pbrShader;
 }
 
 void Renderer::drawObject(
@@ -167,18 +178,22 @@ void Renderer::drawModelNode(
 
             const auto& material = model.GetMaterials()[primitive.MaterialIndex];
 
-            m_pbrShader->Bind();
-            material->Apply(*m_pbrShader);
+            Shader& shader = getShaderForMaterial(*material);
+            shader.Bind();
+            material->Apply(shader);
 
-            m_pbrShader->SetMat4("uModel", modelMatrix);
-            m_pbrShader->SetMat4("uView", camera.GetView());
-            m_pbrShader->SetMat4("uProjection",camera.GetProjection(m_window.GetAspectRatio()));
-            m_pbrShader->SetVec3("uCameraPosition", camera.GetPosition());
-            m_pbrShader->SetInt("uIrradianceMap", 4);
-            m_pbrShader->SetInt("uPrefilterMap", 5);
-            m_pbrShader->SetInt("uBRDFLUT", 6);
+            shader.SetMat4("uModel", modelMatrix);
+            shader.SetMat4("uView", camera.GetView());
+            shader.SetMat4("uProjection",camera.GetProjection(m_window.GetAspectRatio()));
 
-            sun.Apply(*m_pbrShader);
+            if (material->Type == MaterialType::PBR) {
+                shader.SetVec3("uCameraPosition", camera.GetPosition());
+                shader.SetInt("uIrradianceMap", 4);
+                shader.SetInt("uPrefilterMap", 5);
+                shader.SetInt("uBRDFLUT", 6);
+
+                sun.Apply(shader);
+            }
 
             primitive.Geometry->Draw();
         }

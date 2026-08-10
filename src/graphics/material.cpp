@@ -7,6 +7,13 @@
 
 void Material::Apply(Shader& shader) const {
     shader.SetColor("uMaterial.BaseColor", BaseColor);
+    shader.SetInt("uBaseColorTexture", 0);
+
+    if (BaseColorTexture) BaseColorTexture->Bind(0);
+    else DefaultResources::WhiteTexture()->Bind(0);
+
+    if (Type != MaterialType::PBR) return;
+
     shader.SetColor("uMaterial.EmissiveColor", EmissiveColor);
 
     shader.SetFloat("uMaterial.Metallic", std::clamp(Metallic, 0.0f, 1.0f));
@@ -15,13 +22,9 @@ void Material::Apply(Shader& shader) const {
     shader.SetFloat("uMaterial.EmissiveStrength", EmissiveStrength);
     shader.SetFloat("uMaterial.OcclusionStrength", OcclusionStrength);
 
-    shader.SetInt("uBaseColorTexture", 0);
     shader.SetInt("uARMTexture", 1);
     shader.SetInt("uNormalTexture", 2);
     shader.SetInt("uEmissiveTexture", 3);
-
-    if (BaseColorTexture) BaseColorTexture->Bind(0);
-    else DefaultResources::WhiteTexture()->Bind(0);
 
     if (ARMTexture) ARMTexture->Bind(1);
     else DefaultResources::WhiteTexture()->Bind(1);

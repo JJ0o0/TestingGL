@@ -44,10 +44,13 @@ class Renderer {
         std::shared_ptr<Mesh> m_screenQuad;
 
         std::shared_ptr<Shader> m_pbrShader;
+        std::shared_ptr<Shader> m_unlitShader;
         std::shared_ptr<Shader> m_skyboxShader;
         std::shared_ptr<Shader> m_postProcessShader;
 
         std::shared_ptr<Texture> m_brdfLUT;
+
+        Shader& getShaderForMaterial(const Material& material);
 
         void drawObject(
             const GameObject& object,

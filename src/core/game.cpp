@@ -57,9 +57,9 @@ void Game::showInfo() {
 }
 
 void Game::initResources() {
-    m_scene.SetEnvironment(ResourceManager::LoadEnvironment("assets/hdr/studio.hdr"));
+    m_scene.SetEnvironment(ResourceManager::LoadEnvironment("assets/hdr/sky.hdr"));
 
-    m_model = ResourceManager::LoadModel("assets/models/survival_guitar_backpack.glb");
+    m_model = ResourceManager::LoadModel("assets/models/damaged_helmet.glb");
     if (!m_model) {
         LogError("Failed to load test model");
         return;
@@ -67,7 +67,7 @@ void Game::initResources() {
 
     GameObject& model = m_scene.CreateGameObject("Helmet");
     model.SetModel(m_model);
-    model.GetTransform().Scale *= 0.01f;
+    // model.GetTransform().Scale *= 0.01f;
 
     m_modelUUID = model.GetUUID();
 
