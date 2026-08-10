@@ -73,7 +73,5 @@ void main() {
     vec3 emissive = emissiveSample * uMaterial.EmissiveColor.rgb * uMaterial.EmissiveStrength;
 
     vec3 result = ambient + directional + emissive;
-    result = result / (result + vec3(1.0)); // REINHARD
-
     FragColor = vec4(result, baseColor.a);
 }

@@ -31,6 +31,8 @@ add_executable(${CMAKE_PROJECT_NAME}
     "src/graphics/material.cpp"
     "src/graphics/cubemap.cpp"
     "src/graphics/tangent_generation.cpp"
+    "src/graphics/environment.cpp"
+    "src/graphics/framebuffer.cpp"
 
     "src/platform/window.cpp"
     "src/platform/default_resources.cpp"

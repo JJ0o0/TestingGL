@@ -27,6 +27,10 @@ void Game::Initialize() {
     });
 
     initResources();
+
+    auto& settings = m_renderer.GetSettings();
+    settings.Exposure = 1.0f;
+    settings.Tonemapper = ToneMapping::ACES;
 }
 
 void Game::Update(float deltatime) {
@@ -55,7 +59,7 @@ void Game::showInfo() {
 void Game::initResources() {
     m_scene.SetEnvironment(ResourceManager::LoadEnvironment("assets/hdr/studio.hdr"));
 
-    m_model = ResourceManager::LoadModel("assets/models/damaged_helmet.glb");
+    m_model = ResourceManager::LoadModel("assets/models/survival_guitar_backpack.glb");
     if (!m_model) {
         LogError("Failed to load test model");
         return;
@@ -63,6 +67,7 @@ void Game::initResources() {
 
     GameObject& model = m_scene.CreateGameObject("Helmet");
     model.SetModel(m_model);
+    model.GetTransform().Scale *= 0.01f;
 
     m_modelUUID = model.GetUUID();
 

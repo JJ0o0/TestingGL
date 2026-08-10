@@ -1,8 +1,13 @@
 #pragma once
 
+#include <core/render_settings.hpp>
+#include <core/logging.hpp>
+
 #include <platform/window.hpp>
 
+#include <graphics/premade_meshes/screen_quad.hpp>
 #include <graphics/premade_meshes/cube.hpp>
+#include <graphics/framebuffer.hpp>
 #include <graphics/environment.hpp>
 #include <graphics/cubemap.hpp>
 #include <graphics/texture.hpp>
@@ -17,16 +22,7 @@
 
 class Renderer {
     public:
-        Renderer(Window& window) : m_window(window) {
-            m_skyboxMesh = CreateCubemapCube();
-
-            m_pbrShader = std::make_shared<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
-
-            m_skyboxShader = std::make_shared<Shader>("assets/shaders/skybox.vert", "assets/shaders/skybox.frag");
-            m_skyboxShader->SetInt("uEnvironmentMap", 0);
-
-            m_brdfLUT = CreateBRDFLUT(512);
-        }
+        Renderer(Window& window);
 
         void Render(
             const Scene& scene,
@@ -35,13 +31,21 @@ class Renderer {
         );
 
         void Destroy();
+
+        RenderSettings& GetSettings() { return m_settings; }
+        const RenderSettings& GetSettings() const { return m_settings; }
     private:
         Window& m_window;
+        RenderSettings m_settings{};
+
+        std::unique_ptr<Framebuffer> m_hdrFramebuffer;
 
         std::shared_ptr<Mesh> m_skyboxMesh;
+        std::shared_ptr<Mesh> m_screenQuad;
 
         std::shared_ptr<Shader> m_pbrShader;
         std::shared_ptr<Shader> m_skyboxShader;
+        std::shared_ptr<Shader> m_postProcessShader;
 
         std::shared_ptr<Texture> m_brdfLUT;
 
