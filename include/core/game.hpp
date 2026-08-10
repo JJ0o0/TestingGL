@@ -50,10 +50,13 @@ class Game {
 
         std::shared_ptr<Shader> m_shader;
         std::shared_ptr<Cubemap> m_environmentMap;
+        std::shared_ptr<Cubemap> m_irradianceMap;
+        std::shared_ptr<Cubemap> m_prefilterMap;
+        std::shared_ptr<Texture> m_brdfLUT;
         std::shared_ptr<Model> m_model;
 
         Scene m_scene;
-        UUID m_bagUUID;
+        UUID m_modelUUID;
 
         void showInfo();
         void initResources();

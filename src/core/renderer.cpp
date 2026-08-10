@@ -4,15 +4,21 @@ void Renderer::Render(
     const Scene& scene,
     const Camera& camera,
     const Color& clearColor,
-    const Cubemap& environmentMap
+    const Cubemap& environmentMap,
+    const Cubemap& irradianceMap,
+    const Cubemap& prefilterMap,
+    const Texture& brdfLUT
 ) {
     glClearColor(clearColor.R, clearColor.G, clearColor.B, clearColor.A);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    const auto& ambient = scene.GetAmbientLight();
+    irradianceMap.Bind(4);
+    prefilterMap.Bind(5);
+    brdfLUT.Bind(6);
+
     const auto& sun = scene.GetSun();
     for (const auto& [_, obj] : scene.GetGameObjects()) {
-        drawObject(obj, camera, ambient, sun);
+        drawObject(obj, camera, sun);
     }
 
     drawSkybox(environmentMap, camera);
@@ -26,7 +32,6 @@ void Renderer::Destroy() {
 void Renderer::drawObject(
     const GameObject& object,
     const Camera& camera,
-    const AmbientLight& ambient,
     const DirectionalLight& sun
 ) {
     if (!object.GetModel()) return;
@@ -40,7 +45,6 @@ void Renderer::drawObject(
             rootNode,
             rootTransform,
             camera,
-            ambient,
             sun
         );
     }
@@ -51,7 +55,6 @@ void Renderer::drawModelNode(
     uint32_t nodeIndex,
     const glm::mat4& parentTransform,
     const Camera& camera,
-    const AmbientLight& ambient,
     const DirectionalLight& sun
 ) {
     const ModelNode& node = model.GetNodes()[nodeIndex];
@@ -71,8 +74,10 @@ void Renderer::drawModelNode(
             shader->SetMat4("uView", camera.GetView());
             shader->SetMat4("uProjection",camera.GetProjection(m_window.GetAspectRatio()));
             shader->SetVec3("uCameraPosition", camera.GetPosition());
+            shader->SetInt("uIrradianceMap", 4);
+            shader->SetInt("uPrefilterMap", 5);
+            shader->SetInt("uBRDFLUT", 6);
 
-            ambient.Apply(*shader);
             sun.Apply(*shader);
 
             primitive.Geometry->Draw();
@@ -85,7 +90,6 @@ void Renderer::drawModelNode(
             childIndex,
             modelMatrix,
             camera,
-            ambient,
             sun
         );
     }

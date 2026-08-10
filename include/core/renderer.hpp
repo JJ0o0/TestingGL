@@ -25,7 +25,10 @@ class Renderer {
             const Scene& scene,
             const Camera& camera,
             const Color& clearColor,
-            const Cubemap& environmentMap
+            const Cubemap& environmentMap,
+            const Cubemap& irradianceMap,
+            const Cubemap& prefilterMap,
+            const Texture& brdfLUT
         );
 
         void Destroy();
@@ -38,7 +41,6 @@ class Renderer {
         void drawObject(
             const GameObject& object,
             const Camera& camera,
-            const AmbientLight& ambient,
             const DirectionalLight& sun
         );
 
@@ -47,7 +49,6 @@ class Renderer {
             uint32_t nodeIndex,
             const glm::mat4& parentTransform,
             const Camera& camera,
-            const AmbientLight& ambient,
             const DirectionalLight& sun
         );
 

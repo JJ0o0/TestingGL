@@ -26,6 +26,22 @@ float GeometrySmith(float NdotV, float NdotL, float roughness) {
     return Gv * Gl;
 }
 
+vec3 CalculateDiffuseIBL(
+    vec3 irradiance,
+    vec3 baseColor, float metallic,
+    vec3 N, vec3 V
+) {
+    float NdotV = max(dot(N, V), 0.0);
+
+    vec3 F0 = mix(vec3(0.04), baseColor, metallic);
+    vec3 F = FresnelSchlick(NdotV, F0);
+
+    vec3 kS = F;
+    vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
+
+    return kD * irradiance * baseColor;
+}
+
 vec3 CalculatePBR(
     vec3 baseColor, float metallic, float roughness,
     vec3 N, vec3 V, vec3 L,

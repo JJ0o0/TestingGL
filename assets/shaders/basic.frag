@@ -12,6 +12,9 @@ in vec2 TexCoord;
 in vec4 Tangent;
 
 uniform vec3 uCameraPosition;
+uniform samplerCube uIrradianceMap;
+uniform samplerCube uPrefilterMap;
+uniform sampler2D uBRDFLUT;
 
 void main() {
     vec4 baseColorSample = texture(uBaseColorTexture, TexCoord);
@@ -39,7 +42,27 @@ void main() {
 
     vec3 V = normalize(uCameraPosition - FragPos); // VIEW DIRECTION
 
-    vec3 ambient = CalculateAmbientLight(uAmbient) * baseColor.rgb;
+    vec3 irradiance = texture(uIrradianceMap, N).rgb;
+
+    vec3 ambient = CalculateDiffuseIBL(
+        irradiance,
+        baseColor.rgb, metallic,
+        N, V
+    );
+
+    vec3 F0 = mix(vec3(0.04), baseColor.rgb, metallic);
+    float NdotV = max(dot(N, V), 0.0);
+    vec3 R = reflect(-V, N);
+
+    const float MAX_REFLECTION_LOD = 4.0;
+    vec3 prefilteredColor = textureLod(uPrefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
+    vec2 brdf = texture(uBRDFLUT, vec2(NdotV, roughness)).rg;
+
+    vec3 F = FresnelSchlick(NdotV, F0);
+
+    vec3 specularIBL = prefilteredColor * (F * brdf.x + brdf.y);
+    ambient += specularIBL;
+
     vec3 directional = CalculateDirectionalLight(
         uDirectionalLight,
         baseColor.rgb, metallic, roughness,
@@ -52,5 +75,7 @@ void main() {
     ambient *= ao;
 
     vec3 result = ambient + directional + emissive;
+    result = result / (result + vec3(1.0)); // REINHARD
+
     FragColor = vec4(result, baseColor.a);
 }

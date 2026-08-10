@@ -1,18 +1,10 @@
-struct AmbientLight {
-    vec3 Tint;
-    float Intensity;
-};
-
 struct DirectionalLight {
     vec3 Tint;
     float Intensity;
     vec3 Direction;
 };
 
-uniform AmbientLight uAmbient;
 uniform DirectionalLight uDirectionalLight;
-
-vec3 CalculateAmbientLight(AmbientLight light) { return light.Tint * light.Intensity; }
 
 vec3 CalculateDirectionalLight(
     DirectionalLight light,

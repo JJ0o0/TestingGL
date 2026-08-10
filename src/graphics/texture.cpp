@@ -60,6 +60,28 @@ Texture::Texture(const HDRImageData& image) {
     );
 }
 
+Texture::Texture(uint32_t width, uint32_t height, int internalFormat, int format, int type) {
+    glGenTextures(1, &m_id);
+    glBindTexture(GL_TEXTURE_2D, m_id);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        internalFormat,
+        width, height,
+        0,
+        format,
+        type,
+        nullptr
+    );
+}
+
+
 Texture::~Texture() {
     if (m_id) glDeleteTextures(1, &m_id);
 }
