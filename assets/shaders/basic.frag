@@ -44,7 +44,7 @@ void main() {
 
     vec3 irradiance = texture(uIrradianceMap, N).rgb;
 
-    vec3 ambient = CalculateDiffuseIBL(
+    vec3 diffuseIBL = CalculateDiffuseIBL(
         irradiance,
         baseColor.rgb, metallic,
         N, V
@@ -58,10 +58,10 @@ void main() {
     vec3 prefilteredColor = textureLod(uPrefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
     vec2 brdf = texture(uBRDFLUT, vec2(NdotV, roughness)).rg;
 
-    vec3 F = FresnelSchlick(NdotV, F0);
+    vec3 F = FresnelSchlickRoughness(NdotV, F0, roughness);
 
     vec3 specularIBL = prefilteredColor * (F * brdf.x + brdf.y);
-    ambient += specularIBL;
+    vec3 ambient = diffuseIBL * ao + specularIBL;
 
     vec3 directional = CalculateDirectionalLight(
         uDirectionalLight,
@@ -71,8 +71,6 @@ void main() {
 
     vec3 emissiveSample = texture(uEmissiveTexture, TexCoord).rgb;
     vec3 emissive = emissiveSample * uMaterial.EmissiveColor.rgb * uMaterial.EmissiveStrength;
-
-    ambient *= ao;
 
     vec3 result = ambient + directional + emissive;
     result = result / (result + vec3(1.0)); // REINHARD

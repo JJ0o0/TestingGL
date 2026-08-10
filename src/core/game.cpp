@@ -86,7 +86,7 @@ void Game::initResources() {
 
     m_modelUUID = model.GetUUID();
 
-    m_scene.GetSun().Intensity = 0.0f;
+    m_scene.GetSun().Intensity = 0.25f;
 }
 
 void Game::updateCamera(float deltatime) {
