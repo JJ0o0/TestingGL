@@ -37,5 +37,6 @@ struct Material {
     std::shared_ptr<Texture> NormalTexture;
     std::shared_ptr<Texture> EmissiveTexture;
 
-    void Apply(Shader& shader) const;
+    void ApplyBase(Shader& shader) const;
+    void ApplyPBR(Shader& shader) const;
 };

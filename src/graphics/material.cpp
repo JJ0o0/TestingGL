@@ -5,17 +5,18 @@
 
 #include <algorithm>
 
-void Material::Apply(Shader& shader) const {
+void Material::ApplyBase(Shader& shader) const {
     shader.SetColor("uMaterial.BaseColor", BaseColor);
     shader.SetInt("uBaseColorTexture", 0);
-
-    if (BaseColorTexture) BaseColorTexture->Bind(0);
-    else DefaultResources::WhiteTexture()->Bind(0);
-
     shader.SetInt("uMaterial.AlphaMode", static_cast<int>(Alpha));
     shader.SetFloat("uMaterial.AlphaCutoff", AlphaCutoff);
 
-    if (Type != MaterialType::PBR) return;
+    if (BaseColorTexture) BaseColorTexture->Bind(0);
+    else DefaultResources::WhiteTexture()->Bind(0);
+}
+
+void Material::ApplyPBR(Shader& shader) const {
+    ApplyBase(shader);
 
     shader.SetColor("uMaterial.EmissiveColor", EmissiveColor);
 

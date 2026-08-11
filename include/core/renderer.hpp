@@ -22,6 +22,8 @@
 #include <world/gameobject.hpp>
 #include <world/scene.hpp>
 
+#include <vector>
+
 class Renderer {
     public:
         Renderer(Window& window);
@@ -37,6 +39,12 @@ class Renderer {
         RenderSettings& GetSettings() { return m_settings; }
         const RenderSettings& GetSettings() const { return m_settings; }
     private:
+        struct RenderItem {
+            const Mesh* Geometry = nullptr;
+            const Material* MaterialData = nullptr;
+            glm::mat4 ModelMatrix{1.0f};
+        };
+
         Window& m_window;
         RenderSettings m_settings{};
 
@@ -57,52 +65,28 @@ class Renderer {
         std::unique_ptr<ShadowMap> m_shadowMap;
         std::shared_ptr<Texture> m_brdfLUT;
 
-        Shader& getShaderForMaterial(const Material& material);
+        void resizeRenderTargets(uint32_t width, uint32_t height);
+        glm::mat4 calculateLightSpaceMatrix(const DirectionalLight& sun);
 
-        void drawObject(
-            const GameObject& object,
+        void renderShadowPass(const std::vector<RenderItem>& items, const glm::mat4& lightSpaceMatrix);
+        void renderGeometryPass(const std::vector<RenderItem>& items, const Camera& camera);
+        void renderDeferredLightingPass(
+            const Scene& scene,
             const Camera& camera,
-            const DirectionalLight& sun
+            const glm::mat4& lightSpaceMatrix,
+            const Color& clearColor
         );
+        void renderForwardPass(const std::vector<RenderItem>& items, const Camera& camera);
+        void renderPostProcessPass();
 
-        void drawUnlitObject(
-            const GameObject& object,
-            const Camera& camera
-        );
+        std::vector<RenderItem> buildRenderItems(const Scene& scene) const;
 
-        void drawGeometryObject(const GameObject& object);
-        void drawShadowObject(const GameObject& object);
-
-        void drawModelNode(
+        void collectModelNode(
             const Model& model,
             uint32_t nodeIndex,
             const glm::mat4& parentTransform,
-            const Camera& camera,
-            const DirectionalLight& sun
-        );
+            std::vector<RenderItem>& items
+        ) const;
 
-        void drawUnlitModelNode(
-            const Model& model,
-            uint32_t nodeIndex,
-            const glm::mat4& parentTransform,
-            const Camera& camera
-        );
-
-        void drawGeometryModelNode(
-            const Model& model,
-            uint32_t nodeIndex,
-            const glm::mat4& parentTransform
-        );
-
-        void drawShadowModelNode(
-            const Model& model,
-            uint32_t nodeIndex,
-            const glm::mat4& parentTransform
-        );
-
-        void drawSkybox(
-            const Cubemap& cubemap,
-            const Camera& camera
-        );
-
+        void drawSkybox(const Cubemap& cubemap, const Camera& camera);
 };
