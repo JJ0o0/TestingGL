@@ -3,6 +3,7 @@
 #include <graphics/premade_meshes/screen_quad.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <algorithm>
 #include <vector>
 
 namespace {
@@ -105,19 +106,8 @@ void Renderer::Render(
     renderGeometryPass(renderItems, camera);
     renderDeferredLightingPass(scene, camera, lightSpaceMatrix, clearColor);
     renderForwardPass(renderItems, camera);
+    renderTransparentPass(renderItems, scene, camera, lightSpaceMatrix);
     renderPostProcessPass();
-
-    // GEOMETRY PASS
-
-
-    // HDR DEFERRED LIGHTING PASS
-
-
-    // FORWARD UNLIT PASS
-
-
-    // POST PROCESS PASS
-
 }
 
 void Renderer::Destroy() {
@@ -283,6 +273,91 @@ void Renderer::renderForwardPass(const std::vector<RenderItem>& items, const Cam
 
         item.Geometry->Draw();
     }
+}
+
+void Renderer::renderTransparentPass(
+    const std::vector<RenderItem>& items,
+    const Scene& scene,
+    const Camera& camera,
+    const glm::mat4& lightSpaceMatrix
+) {
+    std::vector<const RenderItem*> transparentItems;
+
+    for (const RenderItem& item : items) {
+        if (item.MaterialData->Alpha == AlphaMode::Blend) transparentItems.push_back(&item);
+    }
+
+    if (transparentItems.empty()) return;
+
+    const glm::vec3 cameraPosition = camera.GetPosition();
+    std::sort(transparentItems.begin(), transparentItems.end(), [&cameraPosition](const RenderItem* a, const RenderItem* b) {
+        const glm::vec3 aPos = glm::vec3(a->ModelMatrix[3]);
+        const glm::vec3 bPos = glm::vec3(b->ModelMatrix[3]);
+
+        const glm::vec3 dA = aPos - cameraPosition;
+        const glm::vec3 dB = bPos - cameraPosition;
+
+        const float distanceA = glm::dot(dA, dA);
+        const float distanceB = glm::dot(dB, dB);
+
+        return distanceA > distanceB;
+    });
+
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glDepthMask(GL_FALSE);
+
+    const auto& environment = scene.GetEnvironment();
+    const auto& sun = scene.GetSun();
+
+    m_pbrShader->Bind();
+    m_pbrShader->SetMat4("uView", camera.GetView());
+    m_pbrShader->SetMat4("uProjection", camera.GetProjection(m_window.GetAspectRatio()));
+    m_pbrShader->SetVec3("uCameraPosition", camera.GetPosition());
+    m_pbrShader->SetMat4("uLightSpaceMatrix", lightSpaceMatrix);
+    m_pbrShader->SetFloat("uEnvironmentIntensity", environment ? environment->Intensity : 0.0f);
+    m_pbrShader->SetInt("uIrradianceMap", 4);
+    m_pbrShader->SetInt("uPrefilterMap", 5);
+    m_pbrShader->SetInt("uBRDFLUT", 6);
+    m_pbrShader->SetInt("uShadowMap", 7);
+
+    if (environment) {
+        environment->Irradiance->Bind(4);
+        environment->Prefilter->Bind(5);
+    }
+
+    m_brdfLUT->Bind(6);
+    m_shadowMap->BindTexture(7);
+
+    sun.Apply(*m_pbrShader);
+
+    m_unlitShader->Bind();
+    m_unlitShader->SetMat4("uView", camera.GetView());
+    m_unlitShader->SetMat4("uProjection", camera.GetProjection(m_window.GetAspectRatio()));
+
+    for (const RenderItem* item : transparentItems) {
+        const Material& material = *item->MaterialData;
+        if (material.Type == MaterialType::PBR) {
+            m_pbrShader->Bind();
+            m_pbrShader->SetMat4("uModel", item->ModelMatrix);
+
+            material.ApplyPBR(*m_pbrShader);
+        } else {
+            m_unlitShader->Bind();
+            m_unlitShader->SetMat4("uModel", item->ModelMatrix);
+
+            material.ApplyBase(*m_unlitShader);
+        }
+
+        item->Geometry->Draw();
+    }
+
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
 }
 
 void Renderer::renderPostProcessPass() {

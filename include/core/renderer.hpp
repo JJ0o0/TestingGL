@@ -77,6 +77,12 @@ class Renderer {
             const Color& clearColor
         );
         void renderForwardPass(const std::vector<RenderItem>& items, const Camera& camera);
+        void renderTransparentPass(
+            const std::vector<RenderItem>& items,
+            const Scene& scene,
+            const Camera& camera,
+            const glm::mat4& lightSpaceMatrix
+        );
         void renderPostProcessPass();
 
         std::vector<RenderItem> buildRenderItems(const Scene& scene) const;
