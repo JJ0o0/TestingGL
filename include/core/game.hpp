@@ -43,16 +43,12 @@ class Game {
 
         Color m_clearColor{0.1f, 0.1f, 0.15f};
 
-        float m_cameraYaw = 0.0f;
-        float m_cameraPitch = 20.0f;
-        float m_cameraDistance = 6.0f;
-        float m_targetCameraDistance = 6.0f;
+        glm::vec3 m_cameraVelocity{0.0f};
+        float m_cameraYaw = -90.0f;
+        float m_cameraPitch = 0.0f;
         Camera m_camera{};
 
-        std::shared_ptr<Model> m_model;
-
         Scene m_scene;
-        UUID m_modelUUID;
 
         void showInfo();
         void initResources();

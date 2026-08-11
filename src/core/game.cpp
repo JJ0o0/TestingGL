@@ -19,6 +19,13 @@ void Game::Initialize() {
     Input::SetKeyCallback([this](int key, InputAction action) {
         if (action == InputAction::Pressed) {
             switch (key) {
+                case GLFW_KEY_ESCAPE: {
+                    const bool locked = Input::IsCursorCaptured();
+                    if (locked) Input::SetCursorMode(CursorMode::Normal);
+                    else Input::SetCursorMode(CursorMode::Disabled);
+
+                    break;
+                }
                 case GLFW_KEY_F8:
                     Quit();
                     break;
@@ -31,6 +38,12 @@ void Game::Initialize() {
     auto& settings = m_renderer.GetSettings();
     settings.Exposure = 1.0f;
     settings.Tonemapper = ToneMapping::ACES;
+
+    m_scene.GetEnvironment()->Intensity = 0.2f;
+
+    m_camera.SetPosition({0.0f, 1.0f, 3.0f});
+
+    Input::SetCursorMode(CursorMode::Disabled);
 }
 
 void Game::Update(float deltatime) {
@@ -43,7 +56,6 @@ void Game::Render() {
 
 void Game::Destroy() {
     m_scene.Clear();
-    m_model.reset();
     m_renderer.Destroy();
 }
 
@@ -59,65 +71,96 @@ void Game::showInfo() {
 void Game::initResources() {
     m_scene.SetEnvironment(ResourceManager::LoadEnvironment("assets/hdr/sky.hdr"));
 
-    m_model = ResourceManager::LoadModel("assets/models/damaged_helmet.glb");
-    if (!m_model) {
-        LogError("Failed to load test model");
+    auto sponzaModel = ResourceManager::LoadModel("assets/models/sponza.glb");
+    if (!sponzaModel) {
+        LogError("Failed to load sponza model");
         return;
     }
 
-    GameObject& model = m_scene.CreateGameObject("Helmet");
-    model.SetModel(m_model);
-    // model.GetTransform().Scale *= 0.01f;
+    auto helmetModel = ResourceManager::LoadModel("assets/models/damaged_helmet.glb");
+    if (!helmetModel) {
+        LogError("Failed to load helmet model");
+        return;
+    }
 
-    m_modelUUID = model.GetUUID();
+    GameObject& sponza = m_scene.CreateGameObject("Sponza");
+    sponza.SetModel(sponzaModel);
 
-    m_scene.GetSun().Intensity = 0.25f;
+    sponza.GetTransform().SetEulerRotation({0.0f, 90.0f, 0.0f});
+
+    GameObject& helmet = m_scene.CreateGameObject("Helmet");
+    helmet.SetModel(helmetModel);
+
+    auto& helmetTransform = helmet.GetTransform();
+    helmetTransform.Position.y += 1.5f;
+    helmetTransform.Scale *= 0.8f;
+
+    m_scene.GetSun().Intensity = 1.0f;
 }
 
 void Game::updateCamera(float deltatime) {
+    if (!Input::IsCursorCaptured() || !Input::IsCursorInside()) return;
+
     const glm::vec2 mouseDelta = Input::GetMouseDelta();
-    const float sensitivity = 0.3f;
 
-    if (Input::IsMouseButtonDown(GLFW_MOUSE_BUTTON_RIGHT)) {
-        m_cameraYaw -= mouseDelta.x * sensitivity;
-        m_cameraPitch -= mouseDelta.y * sensitivity;
+    constexpr float sensitivity = 0.12f;
+    constexpr float moveSpeed = 4.0f;
+    constexpr float sprintSpeed = 7.0f;
 
-        Input::SetCursorMode(CursorMode::Disabled);
-    } else if (Input::IsMouseButtonReleased(GLFW_MOUSE_BUTTON_RIGHT)) {
-        Input::SetCursorMode(CursorMode::Normal);
-    }
+    constexpr float acceleration = 14.0f;
+    constexpr float deceleration = 18.0f;
 
+    // MOUSE LOOK
+    m_cameraYaw += mouseDelta.x * sensitivity;
+    m_cameraPitch -= mouseDelta.y * sensitivity;
     m_cameraPitch = glm::clamp(m_cameraPitch, -89.0f, 89.0f);
-
-    m_targetCameraDistance -= Input::GetScrollDelta() * 0.5f;
-    m_targetCameraDistance = glm::clamp(m_targetCameraDistance, 2.0f, 20.0f);
-
-    constexpr float zoomSmoothness = 8.0f;
-    float zoomT = 1.0f - std::exp(-zoomSmoothness * deltatime);
-
-    m_cameraDistance = glm::mix(m_cameraDistance, m_targetCameraDistance, zoomT);
 
     const float yaw = glm::radians(m_cameraYaw);
     const float pitch = glm::radians(m_cameraPitch);
 
-    const GameObject* targetObj = m_scene.GetGameObject(m_modelUUID);
-    if (!targetObj) return;
-
-    const glm::vec3 target = targetObj->GetTransform().Position;
-
-    glm::vec3 offset {
-        m_cameraDistance * glm::cos(pitch) * glm::sin(yaw),
-        m_cameraDistance * glm::sin(pitch),
-        m_cameraDistance * glm::cos(pitch) * glm::cos(yaw)
+    glm::vec3 front {
+        glm::cos(yaw) * glm::cos(pitch),
+        glm::sin(pitch),
+        glm::sin(yaw) * glm::cos(pitch)
     };
 
-    glm::vec3 targetPosition = target + offset;
+    front = glm::normalize(front);
 
-    float smoothness = 12.0f;
-    float t = 1.0f - std::exp(-smoothness * deltatime);
+    constexpr glm::vec3 worldUp{0.0f, 1.0f, 0.0f};
 
-    glm::vec3 newPosition = glm::mix(m_camera.GetPosition(), targetPosition, t);
+    const glm::vec3 right = glm::normalize(glm::cross(front, worldUp));
 
-    m_camera.SetPosition(newPosition);
-    m_camera.LookAt(target);
+    // MOVEMENT
+    glm::vec3 forward{front.x, 0.0f, front.z};
+    if (glm::length(forward) > 0.0f) forward = glm::normalize(forward);
+
+    glm::vec3 movement{0.0f};
+    if (Input::IsKeyDown(GLFW_KEY_W)) movement += forward;
+    if (Input::IsKeyDown(GLFW_KEY_S)) movement -= forward;
+    if (Input::IsKeyDown(GLFW_KEY_D)) movement += right;
+    if (Input::IsKeyDown(GLFW_KEY_A)) movement -= right;
+    if (Input::IsKeyDown(GLFW_KEY_SPACE)) movement += worldUp;
+    if (Input::IsKeyDown(GLFW_KEY_LEFT_CONTROL)) movement -= worldUp;
+
+    if (glm::length(movement) > 0.0f) movement = glm::normalize(movement);
+
+    const float speed = Input::IsKeyDown(GLFW_KEY_LEFT_SHIFT)
+                        ? sprintSpeed
+                        : moveSpeed;
+
+    const glm::vec3 targetVelocity = movement * speed;
+
+    // SMOOTH
+    const float smoothness = glm::length(movement) > 0.0f
+                             ? acceleration
+                             : deceleration;
+
+    const float t = 1.0f - std::exp(-smoothness * deltatime);
+
+    m_cameraVelocity = glm::mix(m_cameraVelocity, targetVelocity, t);
+
+    // UPDATE
+    const glm::vec3 position = m_camera.GetPosition() + m_cameraVelocity * deltatime;
+    m_camera.SetPosition(position);
+    m_camera.LookAt(position + front);
 }

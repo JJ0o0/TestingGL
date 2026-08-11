@@ -6,3 +6,4 @@ vcpkg/
 .clangd
 
 mingw-w64.cmake
+assets/models/sponza.glb

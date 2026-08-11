@@ -9,6 +9,7 @@
 #include <graphics/premade_meshes/cube.hpp>
 #include <graphics/framebuffer.hpp>
 #include <graphics/environment.hpp>
+#include <graphics/shadow_map.hpp>
 #include <graphics/cubemap.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/camera.hpp>
@@ -46,8 +47,10 @@ class Renderer {
         std::shared_ptr<Shader> m_pbrShader;
         std::shared_ptr<Shader> m_unlitShader;
         std::shared_ptr<Shader> m_skyboxShader;
+        std::shared_ptr<Shader> m_shadowShader;
         std::shared_ptr<Shader> m_postProcessShader;
 
+        std::unique_ptr<ShadowMap> m_shadowMap;
         std::shared_ptr<Texture> m_brdfLUT;
 
         Shader& getShaderForMaterial(const Material& material);
@@ -58,6 +61,8 @@ class Renderer {
             const DirectionalLight& sun
         );
 
+        void drawShadowObject(const GameObject& object);
+
         void drawModelNode(
             const Model& model,
             uint32_t nodeIndex,
@@ -66,8 +71,15 @@ class Renderer {
             const DirectionalLight& sun
         );
 
+        void drawShadowModelNode(
+            const Model& model,
+            uint32_t nodeIndex,
+            const glm::mat4& parentTransform
+        );
+
         void drawSkybox(
             const Cubemap& cubemap,
             const Camera& camera
         );
+
 };

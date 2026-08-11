@@ -10,6 +10,8 @@ struct Environment {
     std::shared_ptr<Cubemap> Skybox;
     std::shared_ptr<Cubemap> Irradiance;
     std::shared_ptr<Cubemap> Prefilter;
+
+    float Intensity = 1.0f;
 };
 
 std::shared_ptr<Environment> CreateEnvironment(

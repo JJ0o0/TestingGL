@@ -1,6 +1,7 @@
 #include <core/renderer.hpp>
 
 #include <graphics/premade_meshes/screen_quad.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace {
     std::shared_ptr<Texture> CreateBRDFLUT(uint32_t size = 512) {
@@ -63,9 +64,12 @@ Renderer::Renderer(Window& window) : m_window(window) {
     m_skyboxShader = std::make_shared<Shader>("assets/shaders/skybox.vert", "assets/shaders/skybox.frag");
     m_skyboxShader->SetInt("uEnvironmentMap", 0);
 
+    m_shadowShader = std::make_shared<Shader>("assets/shaders/shadow.vert", "assets/shaders/shadow.frag");
+
     m_postProcessShader = std::make_shared<Shader>("assets/shaders/post_process.vert", "assets/shaders/post_process.frag");
     m_postProcessShader->SetInt("uScene", 0);
 
+    m_shadowMap = std::make_unique<ShadowMap>(1024, 1024);
     m_brdfLUT = CreateBRDFLUT(512);
 }
 
@@ -79,6 +83,42 @@ void Renderer::Render(
 
     m_hdrFramebuffer->Resize(properties.Width, properties.Height);
 
+    const auto& sun = scene.GetSun();
+
+    // LIGHT SPACE
+    const glm::vec3 lightDirection = glm::normalize(sun.Direction);
+    const glm::vec3 sceneCenter{0.0f};
+    const glm::vec3 lightPosition = sceneCenter - lightDirection * 30.0f;
+
+    const glm::mat4 lightView = glm::lookAt(
+        lightPosition,
+        sceneCenter,
+        glm::vec3(0.0f, 1.0f, 0.0f)
+    );
+
+    const glm::mat4 lightProjection = glm::ortho(
+        -25.0f, 25.0f,
+        -25.0f, 25.0f,
+         0.1f, 80.0f
+    );
+
+    const glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+
+    // SHADOW PASS
+    m_shadowMap->Bind();
+
+    glViewport(0, 0, m_shadowMap->GetWidth(), m_shadowMap->GetHeight());
+
+    glEnable(GL_DEPTH_TEST);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    m_shadowShader->Bind();
+    m_shadowShader->SetMat4("uLightSpaceMatrix", lightSpaceMatrix);
+
+    for (const auto& [_, obj] : scene.GetGameObjects()) {
+        drawShadowObject(obj);
+    }
+
     // HDR SCENE PASS
     m_hdrFramebuffer->Bind();
 
@@ -90,11 +130,17 @@ void Renderer::Render(
     if (environment) {
         environment->Irradiance->Bind(4);
         environment->Prefilter->Bind(5);
+
+        m_pbrShader->Bind();
+        m_pbrShader->SetFloat("uEnvironmentIntensity", environment->Intensity);
     }
 
     m_brdfLUT->Bind(6);
+    m_shadowMap->BindTexture(7);
+    m_pbrShader->Bind();
+    m_pbrShader->SetInt("uShadowMap", 7);
+    m_pbrShader->SetMat4("uLightSpaceMatrix", lightSpaceMatrix);
 
-    const auto& sun = scene.GetSun();
     for (const auto& [_, obj] : scene.GetGameObjects()) {
         drawObject(obj, camera, sun);
     }
@@ -118,11 +164,13 @@ void Renderer::Render(
 
 void Renderer::Destroy() {
     m_brdfLUT.reset();
+    m_shadowMap.reset();
 
     m_postProcessShader.reset();
+    m_shadowShader.reset();
+    m_skyboxShader.reset();
     m_unlitShader.reset();
     m_pbrShader.reset();
-    m_skyboxShader.reset();
 
     m_screenQuad.reset();
     m_skyboxMesh.reset();
@@ -156,6 +204,21 @@ void Renderer::drawObject(
             rootTransform,
             camera,
             sun
+        );
+    }
+}
+
+void Renderer::drawShadowObject(const GameObject& object) {
+    if (!object.GetModel()) return;
+
+    const auto& model = object.GetModel();
+    const glm::mat4 rootTransform = object.GetTransform().GetModelMatrix();
+
+    for (uint32_t rootNode : model->GetRootNodes()) {
+        drawShadowModelNode(
+            *model,
+            rootNode,
+            rootTransform
         );
     }
 }
@@ -206,6 +269,33 @@ void Renderer::drawModelNode(
             modelMatrix,
             camera,
             sun
+        );
+    }
+}
+
+void Renderer::drawShadowModelNode(
+    const Model& model,
+    uint32_t nodeIndex,
+    const glm::mat4& parentTransform
+) {
+    const ModelNode& node = model.GetNodes()[nodeIndex];
+    const glm::mat4 modelMatrix = parentTransform * node.LocalTransform.GetModelMatrix();
+
+    if (node.MeshIndex) {
+        const ModelMesh& mesh = model.GetMeshes()[*node.MeshIndex];
+        m_shadowShader->SetMat4("uModel", modelMatrix);
+
+        for (const ModelPrimitive& primitive : mesh.Primitives) {
+            if (!primitive.Geometry) continue;
+            primitive.Geometry->Draw();
+        }
+    }
+
+    for (uint32_t childIndex : node.Children) {
+        drawShadowModelNode(
+            model,
+            childIndex,
+            modelMatrix
         );
     }
 }
