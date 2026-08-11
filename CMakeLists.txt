@@ -34,6 +34,7 @@ add_executable(${CMAKE_PROJECT_NAME}
     "src/graphics/environment.cpp"
     "src/graphics/framebuffer.cpp"
     "src/graphics/shadow_map.cpp"
+    "src/graphics/gbuffer.cpp"
 
     "src/platform/window.cpp"
     "src/platform/default_resources.cpp"

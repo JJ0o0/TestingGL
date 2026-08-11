@@ -53,6 +53,7 @@ namespace {
 
 Renderer::Renderer(Window& window) : m_window(window) {
     const auto& props = m_window.GetProperties();
+    m_gBuffer = std::make_unique<GBuffer>(props.Width, props.Height);
     m_hdrFramebuffer = std::make_unique<Framebuffer>(props.Width, props.Height);
 
     m_skyboxMesh = CreateCubemapCube();
@@ -65,9 +66,21 @@ Renderer::Renderer(Window& window) : m_window(window) {
     m_skyboxShader->SetInt("uEnvironmentMap", 0);
 
     m_shadowShader = std::make_shared<Shader>("assets/shaders/shadow.vert", "assets/shaders/shadow.frag");
+    m_geometryShader = std::make_shared<Shader>("assets/shaders/deferred/geometry.vert", "assets/shaders/deferred/geometry.frag");
 
     m_postProcessShader = std::make_shared<Shader>("assets/shaders/post_process.vert", "assets/shaders/post_process.frag");
     m_postProcessShader->SetInt("uScene", 0);
+
+    m_deferredLightingShader = std::make_shared<Shader>("assets/shaders/post_process.vert", "assets/shaders/deferred/lighting.frag");
+    m_deferredLightingShader->Bind();
+    m_deferredLightingShader->SetInt("uGPosition", 0);
+    m_deferredLightingShader->SetInt("uGNormalRoughness", 1);
+    m_deferredLightingShader->SetInt("uGAlbedoMetallic", 2);
+    m_deferredLightingShader->SetInt("uGEmissiveAO", 3);
+    m_deferredLightingShader->SetInt("uIrradianceMap", 4);
+    m_deferredLightingShader->SetInt("uPrefilterMap", 5);
+    m_deferredLightingShader->SetInt("uBRDFLUT", 6);
+    m_deferredLightingShader->SetInt("uShadowMap", 7);
 
     m_shadowMap = std::make_unique<ShadowMap>(1024, 1024);
     m_brdfLUT = CreateBRDFLUT(512);
@@ -119,33 +132,78 @@ void Renderer::Render(
         drawShadowObject(obj);
     }
 
-    // HDR SCENE PASS
+    // GEOMETRY PASS
+    m_gBuffer->Resize(properties.Width, properties.Height);
+    m_gBuffer->Bind();
+
+    glEnable(GL_DEPTH_TEST);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    m_geometryShader->Bind();
+    m_geometryShader->SetMat4("uView", camera.GetView());
+    m_geometryShader->SetMat4("uProjection", camera.GetProjection(m_window.GetAspectRatio()));
+
+    for (const auto& [_, obj] : scene.GetGameObjects()) {
+        drawGeometryObject(obj);
+    }
+
+    // HDR DEFERRED LIGHTING PASS
     m_hdrFramebuffer->Bind();
+    glViewport(0, 0, properties.Width, properties.Height);
 
     glEnable(GL_DEPTH_TEST);
     glClearColor(clearColor.R, clearColor.G, clearColor.B, clearColor.A);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, m_gBuffer->GetID());
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_hdrFramebuffer->GetID());
+
+    glBlitFramebuffer(
+        0, 0, properties.Width, properties.Height,
+        0, 0, properties.Width, properties.Height,
+        GL_DEPTH_BUFFER_BIT, GL_NEAREST
+    );
+
+    m_hdrFramebuffer->Bind();
+
     const auto& environment = scene.GetEnvironment();
+    if (environment) {
+        glEnable(GL_DEPTH_TEST);
+
+        drawSkybox(*environment->Skybox, camera);
+    }
+
+    glDisable(GL_DEPTH_TEST);
+
+    m_gBuffer->GetPosition().Bind(0);
+    m_gBuffer->GetNormalRoughness().Bind(1);
+    m_gBuffer->GetAlbedoMetallic().Bind(2);
+    m_gBuffer->GetEmissiveAO().Bind(3);
+
     if (environment) {
         environment->Irradiance->Bind(4);
         environment->Prefilter->Bind(5);
-
-        m_pbrShader->Bind();
-        m_pbrShader->SetFloat("uEnvironmentIntensity", environment->Intensity);
     }
 
     m_brdfLUT->Bind(6);
     m_shadowMap->BindTexture(7);
-    m_pbrShader->Bind();
-    m_pbrShader->SetInt("uShadowMap", 7);
-    m_pbrShader->SetMat4("uLightSpaceMatrix", lightSpaceMatrix);
+
+    m_deferredLightingShader->Bind();
+    m_deferredLightingShader->SetVec3("uCameraPosition", camera.GetPosition());
+    m_deferredLightingShader->SetMat4("uLightSpaceMatrix", lightSpaceMatrix);
+    m_deferredLightingShader->SetFloat("uEnvironmentIntensity", environment ? environment->Intensity : 0.0f);
+
+    sun.Apply(*m_deferredLightingShader);
+
+    m_screenQuad->Draw();
+
+    // FORWARD PASS
+    glEnable(GL_DEPTH_TEST);
 
     for (const auto& [_, obj] : scene.GetGameObjects()) {
-        drawObject(obj, camera, sun);
+        drawUnlitObject(obj, camera);
     }
-
-    if (environment) drawSkybox(*environment->Skybox, camera);
 
     // POST PROCESS PASS
     Framebuffer::Unbind();
@@ -166,7 +224,9 @@ void Renderer::Destroy() {
     m_brdfLUT.reset();
     m_shadowMap.reset();
 
+    m_deferredLightingShader.reset();
     m_postProcessShader.reset();
+    m_geometryShader.reset();
     m_shadowShader.reset();
     m_skyboxShader.reset();
     m_unlitShader.reset();
@@ -176,6 +236,7 @@ void Renderer::Destroy() {
     m_skyboxMesh.reset();
 
     m_hdrFramebuffer.reset();
+    m_gBuffer.reset();
 }
 
 Shader& Renderer::getShaderForMaterial(const Material& material) {
@@ -204,6 +265,40 @@ void Renderer::drawObject(
             rootTransform,
             camera,
             sun
+        );
+    }
+}
+
+void Renderer::drawUnlitObject(
+    const GameObject& object,
+    const Camera& camera
+) {
+    if (!object.GetModel()) return;
+
+    const auto& model = object.GetModel();
+    const glm::mat4 rootTransform = object.GetTransform().GetModelMatrix();
+
+    for (uint32_t rootNode : model->GetRootNodes()) {
+        drawUnlitModelNode(
+            *model,
+            rootNode,
+            rootTransform,
+            camera
+        );
+    }
+}
+
+void Renderer::drawGeometryObject(const GameObject& object) {
+    if (!object.GetModel()) return;
+
+    const auto& model = object.GetModel();
+    const glm::mat4 rootTransform = object.GetTransform().GetModelMatrix();
+
+    for (uint32_t rootNode : model->GetRootNodes()) {
+        drawGeometryModelNode(
+            *model,
+            rootNode,
+            rootTransform
         );
     }
 }
@@ -273,6 +368,78 @@ void Renderer::drawModelNode(
     }
 }
 
+void Renderer::drawUnlitModelNode(
+    const Model& model,
+    uint32_t nodeIndex,
+    const glm::mat4& parentTransform,
+    const Camera& camera
+) {
+    const ModelNode& node = model.GetNodes()[nodeIndex];
+    const glm::mat4 modelMatrix = parentTransform * node.LocalTransform.GetModelMatrix();
+
+    if (node.MeshIndex) {
+        const ModelMesh& mesh = model.GetMeshes()[*node.MeshIndex];
+        m_geometryShader->SetMat4("uModel", modelMatrix);
+
+        for (const ModelPrimitive& primitive : mesh.Primitives) {
+            if (!primitive.Geometry) continue;
+
+            const auto& material = model.GetMaterials()[primitive.MaterialIndex];
+            if (material->Type != MaterialType::Unlit) continue;
+
+            m_unlitShader->Bind();
+            material->Apply(*m_unlitShader);
+
+            m_unlitShader->SetMat4("uModel", modelMatrix);
+            m_unlitShader->SetMat4("uView", camera.GetView());
+            m_unlitShader->SetMat4("uProjection", camera.GetProjection(m_window.GetAspectRatio()));
+
+            primitive.Geometry->Draw();
+        }
+    }
+
+    for (uint32_t childIndex : node.Children) {
+        drawUnlitModelNode(
+            model,
+            childIndex,
+            modelMatrix,
+            camera
+        );
+    }
+}
+
+void Renderer::drawGeometryModelNode(
+    const Model& model,
+    uint32_t nodeIndex,
+    const glm::mat4& parentTransform
+) {
+    const ModelNode& node = model.GetNodes()[nodeIndex];
+    const glm::mat4 modelMatrix = parentTransform * node.LocalTransform.GetModelMatrix();
+
+    if (node.MeshIndex) {
+        const ModelMesh& mesh = model.GetMeshes()[*node.MeshIndex];
+        m_geometryShader->SetMat4("uModel", modelMatrix);
+
+        for (const ModelPrimitive& primitive : mesh.Primitives) {
+            if (!primitive.Geometry) continue;
+
+            const auto& material = model.GetMaterials()[primitive.MaterialIndex];
+            if (material->Type != MaterialType::PBR || material->Alpha == AlphaMode::Blend) continue;
+
+            material->Apply(*m_geometryShader);
+            primitive.Geometry->Draw();
+        }
+    }
+
+    for (uint32_t childIndex : node.Children) {
+        drawGeometryModelNode(
+            model,
+            childIndex,
+            modelMatrix
+        );
+    }
+}
+
 void Renderer::drawShadowModelNode(
     const Model& model,
     uint32_t nodeIndex,
@@ -287,6 +454,11 @@ void Renderer::drawShadowModelNode(
 
         for (const ModelPrimitive& primitive : mesh.Primitives) {
             if (!primitive.Geometry) continue;
+
+            const auto& material = model.GetMaterials()[primitive.MaterialIndex];
+            if (material->Alpha == AlphaMode::Blend) continue;
+
+            material->Apply(*m_shadowShader);
             primitive.Geometry->Draw();
         }
     }

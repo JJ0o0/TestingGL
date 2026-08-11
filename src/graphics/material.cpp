@@ -12,6 +12,9 @@ void Material::Apply(Shader& shader) const {
     if (BaseColorTexture) BaseColorTexture->Bind(0);
     else DefaultResources::WhiteTexture()->Bind(0);
 
+    shader.SetInt("uMaterial.AlphaMode", static_cast<int>(Alpha));
+    shader.SetFloat("uMaterial.AlphaCutoff", AlphaCutoff);
+
     if (Type != MaterialType::PBR) return;
 
     shader.SetColor("uMaterial.EmissiveColor", EmissiveColor);

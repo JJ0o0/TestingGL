@@ -20,6 +20,7 @@ class Framebuffer {
 
         const Texture& GetColorAttachment() const { return *m_colorAttachment; }
 
+        uint32_t GetID() const { return m_id; }
         uint32_t GetWidth() const { return m_width; }
         uint32_t GetHeight() const { return m_height; }
     public:

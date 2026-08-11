@@ -293,6 +293,15 @@ std::shared_ptr<Model> ModelLoader::Load(const std::filesystem::path& path) {
             if (texture) material->EmissiveTexture = std::move(texture);
         }
 
+        // ALPHA MODE
+        switch (gltfMaterial.alphaMode) {
+            case fastgltf::AlphaMode::Opaque: material->Alpha = AlphaMode::Opaque; break;
+            case fastgltf::AlphaMode::Mask: material->Alpha = AlphaMode::Mask; break;
+            case fastgltf::AlphaMode::Blend: material->Alpha = AlphaMode::Blend; break;
+        }
+
+        material->AlphaCutoff = static_cast<float>(gltfMaterial.alphaCutoff);
+
         model->m_materials.push_back(std::move(material));
     }
 

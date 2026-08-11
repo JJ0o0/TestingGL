@@ -11,8 +11,17 @@ enum class MaterialType {
     Unlit
 };
 
+enum class AlphaMode {
+    Opaque,
+    Mask,
+    Blend
+};
+
 struct Material {
     MaterialType Type = MaterialType::PBR;
+
+    AlphaMode Alpha = AlphaMode::Opaque;
+    float AlphaCutoff = 0.5f;
 
     Color BaseColor{1.0f};
     Color EmissiveColor{0.0f, 0.0f, 0.0f, 1.0f};

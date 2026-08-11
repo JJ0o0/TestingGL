@@ -12,6 +12,7 @@
 #include <graphics/shadow_map.hpp>
 #include <graphics/cubemap.hpp>
 #include <graphics/texture.hpp>
+#include <graphics/gbuffer.hpp>
 #include <graphics/camera.hpp>
 #include <graphics/light.hpp>
 #include <graphics/color.hpp>
@@ -39,6 +40,7 @@ class Renderer {
         Window& m_window;
         RenderSettings m_settings{};
 
+        std::unique_ptr<GBuffer> m_gBuffer;
         std::unique_ptr<Framebuffer> m_hdrFramebuffer;
 
         std::shared_ptr<Mesh> m_skyboxMesh;
@@ -48,7 +50,9 @@ class Renderer {
         std::shared_ptr<Shader> m_unlitShader;
         std::shared_ptr<Shader> m_skyboxShader;
         std::shared_ptr<Shader> m_shadowShader;
+        std::shared_ptr<Shader> m_geometryShader;
         std::shared_ptr<Shader> m_postProcessShader;
+        std::shared_ptr<Shader> m_deferredLightingShader;
 
         std::unique_ptr<ShadowMap> m_shadowMap;
         std::shared_ptr<Texture> m_brdfLUT;
@@ -61,6 +65,12 @@ class Renderer {
             const DirectionalLight& sun
         );
 
+        void drawUnlitObject(
+            const GameObject& object,
+            const Camera& camera
+        );
+
+        void drawGeometryObject(const GameObject& object);
         void drawShadowObject(const GameObject& object);
 
         void drawModelNode(
@@ -69,6 +79,19 @@ class Renderer {
             const glm::mat4& parentTransform,
             const Camera& camera,
             const DirectionalLight& sun
+        );
+
+        void drawUnlitModelNode(
+            const Model& model,
+            uint32_t nodeIndex,
+            const glm::mat4& parentTransform,
+            const Camera& camera
+        );
+
+        void drawGeometryModelNode(
+            const Model& model,
+            uint32_t nodeIndex,
+            const glm::mat4& parentTransform
         );
 
         void drawShadowModelNode(
