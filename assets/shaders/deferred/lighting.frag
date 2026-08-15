@@ -126,8 +126,35 @@ void main() {
         V
     );
 
-    // SHADOW
+    // POINT LIGHT
+    vec3 pointLighting = vec3(0.0);
+    for (int i = 0; i < uPointLightCount; ++i) {
+        pointLighting += CalculatePointLight(
+            uPointLights[i],
+            fragPos,
+            baseColor,
+            metallic,
+            roughness,
+            N,
+            V
+        );
+    }
 
+    // SPOT LIGHT
+    vec3 spotLighting = vec3(0.0);
+    for (int i = 0; i < uSpotLightCount; ++i) {
+        spotLighting += CalculateSpotLight(
+            uSpotLights[i],
+            fragPos,
+            baseColor,
+            metallic,
+            roughness,
+            N,
+            V
+        );
+    }
+
+    // SHADOW
     const vec3 L = normalize(-uDirectionalLight.Direction);
     const float shadow = CalculateShadow(
         fragPos,
@@ -135,6 +162,6 @@ void main() {
         L
     );
 
-    const vec3 result = ibl + directional * (1.0 - shadow) + emissive;
+    const vec3 result = ibl + directional * (1.0 - shadow) + pointLighting + spotLighting + emissive;
     FragColor = vec4(result, 1.0);
 }

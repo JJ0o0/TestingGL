@@ -206,6 +206,8 @@ void Renderer::renderDeferredLightingPass(
 ) {
     const auto& properties = m_window.GetProperties();
     const auto& sun = scene.GetSun();
+    const auto& pointLights = scene.GetPointLights();
+    const auto& spotLights = scene.GetSpotLights();
     const auto& environment = scene.GetEnvironment();
 
     m_hdrFramebuffer->Bind();
@@ -251,6 +253,40 @@ void Renderer::renderDeferredLightingPass(
     m_deferredLightingShader->SetVec3("uCameraPosition", camera.GetPosition());
     m_deferredLightingShader->SetMat4("uLightSpaceMatrix", lightSpaceMatrix);
     m_deferredLightingShader->SetFloat("uEnvironmentIntensity", environment ? environment->Intensity : 0.0f);
+
+    static constexpr size_t MAX_SPOT_LIGHTS = 16;
+    const size_t spotLightCount = std::min(spotLights.size(), MAX_SPOT_LIGHTS);
+
+    m_deferredLightingShader->SetInt("uSpotLightCount", static_cast<int>(spotLightCount));
+    for (size_t i = 0; i < spotLightCount; ++i) {
+        const auto& light = spotLights[i];
+        const std::string prefix = std::format("uSpotLights[{}].", i);
+
+        m_deferredLightingShader->SetFloat(prefix + "Intensity", light.Intensity);
+        m_deferredLightingShader->SetFloat(prefix + "Radius", light.Radius);
+        m_deferredLightingShader->SetColor3(prefix + "Tint", light.Tint);
+        m_deferredLightingShader->SetVec3(prefix + "Position", light.Position);
+        m_deferredLightingShader->SetVec3(prefix + "Direction", light.Direction);
+
+        const float innerCutoff = std::cos(glm::radians(light.InnerCone));
+        const float outerCutoff = std::cos(glm::radians(light.OuterCone));
+        m_deferredLightingShader->SetFloat(prefix + "InnerCutoff", innerCutoff);
+        m_deferredLightingShader->SetFloat(prefix + "OuterCutoff", outerCutoff);
+    }
+
+    static constexpr size_t MAX_POINT_LIGHTS = 16;
+    const size_t pointLightCount = std::min(pointLights.size(), MAX_POINT_LIGHTS);
+
+    m_deferredLightingShader->SetInt("uPointLightCount", static_cast<int>(pointLightCount));
+    for (size_t i = 0; i < pointLightCount; ++i) {
+        const auto& light = pointLights[i];
+        const std::string prefix = std::format("uPointLights[{}].", i);
+
+        m_deferredLightingShader->SetFloat(prefix + "Intensity", light.Intensity);
+        m_deferredLightingShader->SetColor3(prefix + "Tint", light.Tint);
+        m_deferredLightingShader->SetVec3(prefix + "Position", light.Position);
+        m_deferredLightingShader->SetFloat(prefix + "Radius", light.Radius);
+    }
 
     sun.Apply(*m_deferredLightingShader);
 

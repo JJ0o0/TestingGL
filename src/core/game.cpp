@@ -96,6 +96,30 @@ void Game::initResources() {
     helmetTransform.Scale *= 0.8f;
 
     m_scene.GetSun().Intensity = 1.0f;
+
+    m_scene.AddPointLight({
+        .Intensity = 10.0f,
+        .Tint = {1.0f, 0.0f, 0.0f},
+        .Position = {-2.0f, 2.0f, 0.0f},
+        .Radius = 5.0f
+    });
+
+    m_scene.AddPointLight({
+        .Intensity = 10.0f,
+        .Tint = {0.0f, 0.0f, 1.0f},
+        .Position = {2.0f, 2.0f, 0.0f},
+        .Radius = 5.0f
+    });
+
+    m_scene.AddSpotLight({
+        .Intensity = 10.0f,
+        .Tint = {0.0f, 1.0f, 0.0f},
+        .Position = {0.0f, 3.0f, 0.0f},
+        .Direction = {0.0f, -1.0f, 0.0f},
+        .Radius = 10.0f,
+        .InnerCone = 20.0f,
+        .OuterCone = 30.0f
+    });
 }
 
 void Game::updateCamera(float deltatime) {

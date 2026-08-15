@@ -26,7 +26,17 @@ bool Scene::DestroyGameObject(const UUID& uuid) {
     return m_gameObjects.erase(uuid) > 0;
 }
 
+void Scene::AddPointLight(const PointLight& light) {
+    m_pointLights.push_back(light);
+}
+
+void Scene::AddSpotLight(const SpotLight& light) {
+    m_spotLights.push_back(light);
+}
+
 void Scene::Clear() {
     m_environment.reset();
+    m_spotLights.clear();
+    m_pointLights.clear();
     m_gameObjects.clear();
 }

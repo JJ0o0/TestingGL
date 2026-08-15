@@ -30,6 +30,12 @@ class Scene {
         DirectionalLight& GetSun() { return m_sun; }
         const DirectionalLight& GetSun() const { return m_sun; }
 
+        void AddPointLight(const PointLight& light);
+        const std::vector<PointLight>& GetPointLights() const { return m_pointLights; }
+
+        void AddSpotLight(const SpotLight& light);
+        const std::vector<SpotLight>& GetSpotLights() const { return m_spotLights; }
+
         void SetEnvironment(std::shared_ptr<Environment> environment) { m_environment = std::move(environment);}
         Environment* GetEnvironment() { return m_environment.get(); }
         const Environment* GetEnvironment() const { return m_environment.get(); }
@@ -42,4 +48,6 @@ class Scene {
 
         AmbientLight m_ambientLight{};
         DirectionalLight m_sun{};
+        std::vector<PointLight> m_pointLights;
+        std::vector<SpotLight> m_spotLights;
 };
