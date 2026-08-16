@@ -25,6 +25,9 @@ uniform mat4 uLightSpaceMatrix;
 uniform vec3 uCameraPosition;
 uniform float uEnvironmentIntensity;
 
+// SSAO
+uniform sampler2D uSSAO;
+
 float CalculateShadow(vec3 worldPos, vec3 normal, vec3 lightDir) {
     vec4 fragPosLightSpace = uLightSpaceMatrix * vec4(worldPos, 1.0);
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
@@ -59,7 +62,6 @@ float CalculateShadow(vec3 worldPos, vec3 normal, vec3 lightDir) {
     return shadow / 9.0;
 }
 
-
 void main() {
     // READ GBUFFER
     const vec3 fragPos = texture(uGPosition, TexCoord).rgb;
@@ -77,7 +79,10 @@ void main() {
     const vec3 baseColor = albedoMetallic.rgb;
     const float metallic = albedoMetallic.a;
     const vec3 emissive = emissiveAO.rgb;
-    const float ao = emissiveAO.a;
+
+    const float materialAO = emissiveAO.a;
+    const float ssao = texture(uSSAO, TexCoord).r;
+    const float ao = materialAO * ssao;
 
     // VIEW
     const vec3 V = normalize(uCameraPosition - fragPos);

@@ -9,4 +9,7 @@ enum class ToneMapping {
 struct RenderSettings {
     ToneMapping Tonemapper = ToneMapping::ACES;
     float Exposure = 1.0f;
+
+    float SSAORadius = 0.5f;
+    float SSAOBias = 0.025f;
 };

@@ -4,9 +4,8 @@
 
 #include <glad/gl.h>
 
-Framebuffer::Framebuffer(uint32_t width, uint32_t height)
-    : m_width(width),
-      m_height(height) {
+Framebuffer::Framebuffer(const FramebufferProperties& properties)
+    : m_properties(properties){
     invalidate();
 }
 
@@ -16,7 +15,7 @@ Framebuffer::~Framebuffer() {
 
 void Framebuffer::Bind() const {
     glBindFramebuffer(GL_FRAMEBUFFER, m_id);
-    glViewport(0, 0, m_width, m_height);
+    glViewport(0, 0, m_properties.Width, m_properties.Height);
 }
 
 void Framebuffer::Unbind() {
@@ -24,10 +23,10 @@ void Framebuffer::Unbind() {
 }
 
 void Framebuffer::Resize(uint32_t width, uint32_t height) {
-    if (width == 0 || height == 0 || (width == m_width && height == m_height)) return;
+    if (width == 0 || height == 0 || (width == m_properties.Width && height == m_properties.Height)) return;
 
-    m_width = width;
-    m_height = height;
+    m_properties.Width = width;
+    m_properties.Height = height;
 
     destroy();
     invalidate();
@@ -37,12 +36,13 @@ void Framebuffer::invalidate() {
     glGenFramebuffers(1, &m_id);
     glBindFramebuffer(GL_FRAMEBUFFER,m_id);
 
-    // HDR
+    // COLOR ATTACHMENT
     m_colorAttachment = std::make_unique<Texture>(
-        m_width, m_height,
-        GL_RGBA16F,
-        GL_RGBA,
-        GL_FLOAT
+        m_properties.Width, m_properties.Height,
+        m_properties.ColorInternalFormat,
+        m_properties.ColorFormat,
+        m_properties.ColorType,
+        m_properties.Filter
     );
 
     glFramebufferTexture2D(
@@ -54,21 +54,23 @@ void Framebuffer::invalidate() {
     );
 
     // DEPTH
-    glGenRenderbuffers(1, &m_depthRBO);
-    glBindRenderbuffer(GL_RENDERBUFFER, m_depthRBO);
+    if (m_properties.HasDepth) {
+        glGenRenderbuffers(1, &m_depthRBO);
+        glBindRenderbuffer(GL_RENDERBUFFER, m_depthRBO);
 
-    glRenderbufferStorage(
-        GL_RENDERBUFFER,
-        GL_DEPTH_COMPONENT24,
-        m_width, m_height
-    );
+        glRenderbufferStorage(
+            GL_RENDERBUFFER,
+            GL_DEPTH_COMPONENT24,
+            m_properties.Width, m_properties.Height
+        );
 
-    glFramebufferRenderbuffer(
-        GL_FRAMEBUFFER,
-        GL_DEPTH_ATTACHMENT,
-        GL_RENDERBUFFER,
-        m_depthRBO
-    );
+        glFramebufferRenderbuffer(
+            GL_FRAMEBUFFER,
+            GL_DEPTH_ATTACHMENT,
+            GL_RENDERBUFFER,
+            m_depthRBO
+        );
+    }
 
     glDrawBuffer(GL_COLOR_ATTACHMENT0);
 

@@ -1,6 +1,9 @@
 #pragma once
 
 #include <graphics/image_data.hpp>
+
+#include <glad/gl.h>
+
 #include <filesystem>
 #include <cstdint>
 
@@ -14,7 +17,13 @@ class Texture {
         Texture(const std::filesystem::path& path, TextureFormat format = TextureFormat::SRGBA8);
         Texture(const ImageData& image, TextureFormat format = TextureFormat::SRGBA8);
         Texture(const HDRImageData& image);
-        Texture(uint32_t width, uint32_t height, int internalFormat, int format, int type);
+        Texture(
+            uint32_t width, uint32_t height,
+            int internalFormat, int format,
+            int type,
+            int filter = GL_LINEAR, int wrap = GL_CLAMP_TO_EDGE,
+            const void* data = nullptr
+        );
         ~Texture();
 
         Texture(const Texture&) = delete;

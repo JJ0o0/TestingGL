@@ -45,17 +45,26 @@ class Renderer {
             glm::mat4 ModelMatrix{1.0f};
         };
 
+        static constexpr size_t SSAOKernelSize = 32;
+        static constexpr size_t SSAONoiseSize = 16;
+        std::array<glm::vec3, SSAOKernelSize> m_ssaoKernel;
+        std::array<glm::vec3, SSAONoiseSize> m_ssaoNoise;
+
         Window& m_window;
         RenderSettings m_settings{};
 
         std::unique_ptr<GBuffer> m_gBuffer;
         std::unique_ptr<Framebuffer> m_hdrFramebuffer;
+        std::unique_ptr<Framebuffer> m_ssaoFramebuffer;
+        std::unique_ptr<Framebuffer> m_ssaoBlurFramebuffer;
 
         std::shared_ptr<Mesh> m_skyboxMesh;
         std::shared_ptr<Mesh> m_screenQuad;
 
         std::shared_ptr<Shader> m_pbrShader;
         std::shared_ptr<Shader> m_unlitShader;
+        std::shared_ptr<Shader> m_ssaoShader;
+        std::shared_ptr<Shader> m_ssaoBlurShader;
         std::shared_ptr<Shader> m_skyboxShader;
         std::shared_ptr<Shader> m_shadowShader;
         std::shared_ptr<Shader> m_geometryShader;
@@ -64,12 +73,17 @@ class Renderer {
 
         std::unique_ptr<ShadowMap> m_shadowMap;
         std::shared_ptr<Texture> m_brdfLUT;
+        std::unique_ptr<Texture> m_ssaoNoiseTexture;
 
+        void generateSSAOKernel();
+        void generateSSAONoise();
         void resizeRenderTargets(uint32_t width, uint32_t height);
         glm::mat4 calculateLightSpaceMatrix(const DirectionalLight& sun);
 
         void renderShadowPass(const std::vector<RenderItem>& items, const glm::mat4& lightSpaceMatrix);
         void renderGeometryPass(const std::vector<RenderItem>& items, const Camera& camera);
+        void renderSSAOPass(const Camera& camera);
+        void renderSSAOBlurPass();
         void renderDeferredLightingPass(
             const Scene& scene,
             const Camera& camera,

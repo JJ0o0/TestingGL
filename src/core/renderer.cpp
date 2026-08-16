@@ -4,6 +4,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
+#include <random>
 #include <vector>
 
 namespace {
@@ -57,7 +58,36 @@ namespace {
 Renderer::Renderer(Window& window) : m_window(window) {
     const auto& props = m_window.GetProperties();
     m_gBuffer = std::make_unique<GBuffer>(props.Width, props.Height);
-    m_hdrFramebuffer = std::make_unique<Framebuffer>(props.Width, props.Height);
+
+    m_hdrFramebuffer = std::make_unique<Framebuffer>(FramebufferProperties{
+        .Width = props.Width,
+        .Height = props.Height,
+        .ColorInternalFormat = GL_RGBA16F,
+        .ColorFormat = GL_RGBA,
+        .ColorType = GL_FLOAT,
+        .Filter = GL_LINEAR,
+        .HasDepth = true
+    });
+
+    m_ssaoFramebuffer = std::make_unique<Framebuffer>(FramebufferProperties{
+        .Width = props.Width,
+        .Height = props.Height,
+        .ColorInternalFormat = GL_R8,
+        .ColorFormat = GL_RED,
+        .ColorType = GL_UNSIGNED_BYTE,
+        .Filter = GL_NEAREST,
+        .HasDepth = false
+    });
+
+    m_ssaoBlurFramebuffer = std::make_unique<Framebuffer>(FramebufferProperties{
+        .Width = props.Width,
+        .Height = props.Height,
+        .ColorInternalFormat = GL_R8,
+        .ColorFormat = GL_RED,
+        .ColorType = GL_UNSIGNED_BYTE,
+        .Filter = GL_NEAREST,
+        .HasDepth = false
+    });
 
     m_skyboxMesh = CreateCubemapCube();
     m_screenQuad = CreateScreenQuad();
@@ -65,16 +95,50 @@ Renderer::Renderer(Window& window) : m_window(window) {
     m_pbrShader = std::make_shared<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
     m_unlitShader = std::make_shared<Shader>("assets/shaders/unlit.vert", "assets/shaders/unlit.frag");
 
+    m_ssaoShader = std::make_shared<Shader>("assets/shaders/fullscreen.vert", "assets/shaders/ssao/ssao.frag");
+
+    generateSSAOKernel();
+    generateSSAONoise();
+
+    std::array<float, SSAONoiseSize * 3> noiseData;
+    for (size_t i = 0; i < SSAONoiseSize; ++i) {
+        noiseData[i * 3 + 0] = m_ssaoNoise[i].x;
+        noiseData[i * 3 + 1] = m_ssaoNoise[i].y;
+        noiseData[i * 3 + 2] = m_ssaoNoise[i].z;
+    }
+
+    m_ssaoNoiseTexture = std::make_unique<Texture>(
+        4, 4,
+        GL_RGB16F, GL_RGB,
+        GL_FLOAT,
+        GL_NEAREST, GL_REPEAT,
+        noiseData.data()
+    );
+
+    m_ssaoShader->Bind();
+    m_ssaoShader->SetInt("uGPosition", 0);
+    m_ssaoShader->SetInt("uGNormalRoughness", 1);
+    m_ssaoShader->SetInt("uNoiseTexture", 2);
+
+    for (size_t i = 0; i < SSAOKernelSize; ++i) {
+        const std::string name = std::format("uSamples[{}]", i);
+        m_ssaoShader->SetVec3(name, m_ssaoKernel[i]);
+    }
+
+    m_ssaoBlurShader = std::make_shared<Shader>("assets/shaders/fullscreen.vert", "assets/shaders/ssao/blur.frag");
+    m_ssaoBlurShader->Bind();
+    m_ssaoBlurShader->SetInt("uSSAO", 0);
+
     m_skyboxShader = std::make_shared<Shader>("assets/shaders/skybox.vert", "assets/shaders/skybox.frag");
     m_skyboxShader->SetInt("uEnvironmentMap", 0);
 
     m_shadowShader = std::make_shared<Shader>("assets/shaders/shadow.vert", "assets/shaders/shadow.frag");
     m_geometryShader = std::make_shared<Shader>("assets/shaders/deferred/geometry.vert", "assets/shaders/deferred/geometry.frag");
 
-    m_postProcessShader = std::make_shared<Shader>("assets/shaders/post_process.vert", "assets/shaders/post_process.frag");
+    m_postProcessShader = std::make_shared<Shader>("assets/shaders/fullscreen.vert", "assets/shaders/post_process.frag");
     m_postProcessShader->SetInt("uScene", 0);
 
-    m_deferredLightingShader = std::make_shared<Shader>("assets/shaders/post_process.vert", "assets/shaders/deferred/lighting.frag");
+    m_deferredLightingShader = std::make_shared<Shader>("assets/shaders/fullscreen.vert", "assets/shaders/deferred/lighting.frag");
     m_deferredLightingShader->Bind();
     m_deferredLightingShader->SetInt("uGPosition", 0);
     m_deferredLightingShader->SetInt("uGNormalRoughness", 1);
@@ -84,6 +148,7 @@ Renderer::Renderer(Window& window) : m_window(window) {
     m_deferredLightingShader->SetInt("uPrefilterMap", 5);
     m_deferredLightingShader->SetInt("uBRDFLUT", 6);
     m_deferredLightingShader->SetInt("uShadowMap", 7);
+    m_deferredLightingShader->SetInt("uSSAO", 8);
 
     m_shadowMap = std::make_unique<ShadowMap>(1024, 1024);
     m_brdfLUT = CreateBRDFLUT(512);
@@ -104,6 +169,8 @@ void Renderer::Render(
 
     renderShadowPass(renderItems, lightSpaceMatrix);
     renderGeometryPass(renderItems, camera);
+    renderSSAOPass(camera);
+    renderSSAOBlurPass();
     renderDeferredLightingPass(scene, camera, lightSpaceMatrix, clearColor);
     renderForwardPass(renderItems, camera);
     renderTransparentPass(renderItems, scene, camera, lightSpaceMatrix);
@@ -111,6 +178,7 @@ void Renderer::Render(
 }
 
 void Renderer::Destroy() {
+    m_ssaoNoiseTexture.reset();
     m_brdfLUT.reset();
     m_shadowMap.reset();
 
@@ -119,17 +187,62 @@ void Renderer::Destroy() {
     m_geometryShader.reset();
     m_shadowShader.reset();
     m_skyboxShader.reset();
+    m_ssaoBlurShader.reset();
+    m_ssaoShader.reset();
     m_unlitShader.reset();
     m_pbrShader.reset();
 
     m_screenQuad.reset();
     m_skyboxMesh.reset();
 
+    m_ssaoBlurFramebuffer.reset();
+    m_ssaoFramebuffer.reset();
     m_hdrFramebuffer.reset();
     m_gBuffer.reset();
 }
 
+void Renderer::generateSSAOKernel() {
+    std::mt19937 generator(67);
+    std::uniform_real_distribution<float> randomPos(0.0f, 1.0f);
+    std::uniform_real_distribution<float> randomNegativePos(-1.0f, 1.0f);
+
+    for (size_t i = 0; i < SSAOKernelSize; ++i) {
+        glm::vec3 sample {
+            randomNegativePos(generator),
+            randomNegativePos(generator),
+            randomPos(generator)
+        };
+
+        sample = glm::normalize(sample);
+        sample *= randomPos(generator);
+
+        float t = static_cast<float>(i) / static_cast<float>(SSAOKernelSize);
+        float scale = glm::mix(0.1f, 1.0f, t * t);
+        sample *= scale;
+
+        m_ssaoKernel[i] = sample;
+    }
+}
+
+void Renderer::generateSSAONoise() {
+    std::mt19937 generator(61);
+    std::uniform_real_distribution<float> randomNegativePos(-1.0f, 1.0f);
+
+    for (size_t i = 0; i < SSAONoiseSize; ++i) {
+        glm::vec3 noise {
+            randomNegativePos(generator),
+            randomNegativePos(generator),
+            0.0f
+        };
+
+        noise = glm::normalize(noise);
+        m_ssaoNoise[i] = noise;
+    }
+}
+
 void Renderer::resizeRenderTargets(uint32_t width, uint32_t height) {
+    m_ssaoBlurFramebuffer->Resize(width, height);
+    m_ssaoFramebuffer->Resize(width, height);
     m_hdrFramebuffer->Resize(width, height);
     m_gBuffer->Resize(width, height);
 }
@@ -198,6 +311,40 @@ void Renderer::renderGeometryPass(const std::vector<RenderItem>& items, const Ca
     }
 }
 
+void Renderer::renderSSAOPass(const Camera& camera) {
+    const auto& properties = m_window.GetProperties();
+
+    m_ssaoFramebuffer->Bind();
+
+    glDisable(GL_DEPTH_TEST);
+
+    m_gBuffer->GetPosition().Bind(0);
+    m_gBuffer->GetNormalRoughness().Bind(1);
+    m_ssaoNoiseTexture->Bind(2);
+
+    m_ssaoShader->Bind();
+    m_ssaoShader->SetMat4("uView", camera.GetView());
+    m_ssaoShader->SetMat4("uProjection", camera.GetProjection(m_window.GetAspectRatio()));
+    m_ssaoShader->SetVec2("uNoiseScale", glm::vec2(
+        static_cast<float>(properties.Width) / 4.0f,
+        static_cast<float>(properties.Height) / 4.0f
+    ));
+    m_ssaoShader->SetFloat("uRadius", m_settings.SSAORadius);
+    m_ssaoShader->SetFloat("uBias", m_settings.SSAOBias);
+
+    m_screenQuad->Draw();
+}
+
+void Renderer::renderSSAOBlurPass() {
+    m_ssaoBlurFramebuffer->Bind();
+
+    glDisable(GL_DEPTH_TEST);
+    m_ssaoFramebuffer->GetColorAttachment().Bind(0);
+
+    m_ssaoBlurShader->Bind();
+    m_screenQuad->Draw();
+}
+
 void Renderer::renderDeferredLightingPass(
     const Scene& scene,
     const Camera& camera,
@@ -248,6 +395,7 @@ void Renderer::renderDeferredLightingPass(
 
     m_brdfLUT->Bind(6);
     m_shadowMap->BindTexture(7);
+    m_ssaoBlurFramebuffer->GetColorAttachment().Bind(8);
 
     m_deferredLightingShader->Bind();
     m_deferredLightingShader->SetVec3("uCameraPosition", camera.GetPosition());
