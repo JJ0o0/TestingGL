@@ -43,6 +43,10 @@ void Game::Initialize() {
 
     m_camera.SetPosition({0.0f, 1.0f, 3.0f});
 
+    for (auto& probe : m_scene.GetReflectionProbes()) {
+        m_renderer.BakeReflectionProbe(m_scene, probe);
+    }
+
     Input::SetCursorMode(CursorMode::Disabled);
 }
 
@@ -69,7 +73,8 @@ void Game::showInfo() {
 }
 
 void Game::initResources() {
-    m_scene.SetEnvironment(ResourceManager::LoadEnvironment("assets/hdr/sky.hdr"));
+    auto environment = ResourceManager::LoadEnvironment("assets/hdr/sky.hdr");
+    m_scene.SetEnvironment(environment);
 
     auto sponzaModel = ResourceManager::LoadModel("assets/models/sponza.glb");
     if (!sponzaModel) {
@@ -119,6 +124,22 @@ void Game::initResources() {
         .Radius = 10.0f,
         .InnerCone = 20.0f,
         .OuterCone = 30.0f
+    });
+
+    auto& probeA = m_scene.AddReflectionProbe({
+        .Position = {-2.0f, 2.0f, 0.0f},
+        .BoxMin = {-4.0f, 0.0f, -3.0f},
+        .BoxMax = { 0.5f, 4.0f,  3.0f},
+        .Intensity = 1.0f,
+        .BlendDistance = 1.0f
+    });
+
+    auto& probeB = m_scene.AddReflectionProbe({
+        .Position = {2.0f, 2.0f, 0.0f},
+        .BoxMin = {-0.5f, 0.0f, -3.0f},
+        .BoxMax = { 4.0f, 4.0f,  3.0f},
+        .Intensity = 1.0f,
+        .BlendDistance = 1.0f
     });
 }
 

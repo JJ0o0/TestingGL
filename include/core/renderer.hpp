@@ -34,6 +34,8 @@ class Renderer {
             const Color& clearColor
         );
 
+        void BakeReflectionProbe(const Scene& scene, ReflectionProbe& probe);
+
         void Destroy();
 
         RenderSettings& GetSettings() { return m_settings; }
@@ -70,15 +72,26 @@ class Renderer {
         std::shared_ptr<Shader> m_geometryShader;
         std::shared_ptr<Shader> m_postProcessShader;
         std::shared_ptr<Shader> m_deferredLightingShader;
+        std::shared_ptr<Shader> m_reflectionProbeCaptureShader;
 
         std::unique_ptr<ShadowMap> m_shadowMap;
         std::shared_ptr<Texture> m_brdfLUT;
         std::unique_ptr<Texture> m_ssaoNoiseTexture;
 
+        std::shared_ptr<Cubemap> m_debugProbeCapture;
+
         void generateSSAOKernel();
         void generateSSAONoise();
         void resizeRenderTargets(uint32_t width, uint32_t height);
+        void uploadLocalLights(Shader& shader, const Scene& scene);
+        void uploadReflectionProbes(Shader& shader, const Scene& scene);
         glm::mat4 calculateLightSpaceMatrix(const DirectionalLight& sun);
+
+        std::shared_ptr<Cubemap> captureReflectionProbe(
+            const Scene& scene,
+            const ReflectionProbe& probe,
+            uint32_t size
+        );
 
         void renderShadowPass(const std::vector<RenderItem>& items, const glm::mat4& lightSpaceMatrix);
         void renderGeometryPass(const std::vector<RenderItem>& items, const Camera& camera);
@@ -109,4 +122,5 @@ class Renderer {
         ) const;
 
         void drawSkybox(const Cubemap& cubemap, const Camera& camera);
+        void drawSkybox(const Cubemap& cubemap, const glm::mat4& view, const glm::mat4& projection);
 };

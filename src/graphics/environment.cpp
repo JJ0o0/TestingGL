@@ -140,77 +140,77 @@ namespace {
 
         return cubemap;
     }
+}
 
-    std::shared_ptr<Cubemap> CreateIrradianceCubemap(const Cubemap& environmentMap, uint32_t size) {
-        auto irradianceMap = std::make_shared<Cubemap>(size, GL_RGB16F, GL_RGB, GL_FLOAT, false);
+std::shared_ptr<Cubemap> CreateIrradianceCubemap(const Cubemap& environmentMap, uint32_t size) {
+    auto irradianceMap = std::make_shared<Cubemap>(size, GL_RGB16F, GL_RGB, GL_FLOAT, false);
 
-        CubemapCapture capture;
-        capture.Resize(size, size);
+    CubemapCapture capture;
+    capture.Resize(size, size);
 
-        auto cube = CreateCubemapCube();
+    auto cube = CreateCubemapCube();
 
-        Shader irradianceShader("assets/shaders/ibl/cubemap_capture.vert", "assets/shaders/ibl/irradiance_convolution.frag");
-        irradianceShader.Bind();
+    Shader irradianceShader("assets/shaders/ibl/cubemap_capture.vert", "assets/shaders/ibl/irradiance_convolution.frag");
+    irradianceShader.Bind();
 
-        irradianceShader.SetInt("uEnvironmentMap", 0);
-        irradianceShader.SetMat4("uProjection", CaptureProjection);
-        environmentMap.Bind(0);
+    irradianceShader.SetInt("uEnvironmentMap", 0);
+    irradianceShader.SetMat4("uProjection", CaptureProjection);
+    environmentMap.Bind(0);
+
+    for (uint32_t face = 0; face < 6; ++face) {
+        irradianceShader.SetMat4("uView", CaptureViews[face]);
+
+        capture.AttachFace(*irradianceMap, face);
+        if (!capture.IsComplete()) {
+            LogError("Irradiance framebuffer is incomplete on face {}", face);
+        }
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        cube->Draw();
+    }
+
+    return irradianceMap;
+}
+
+std::shared_ptr<Cubemap> CreatePrefilteredEnvironmentCubemap(const Cubemap& environmentMap, uint32_t size) {
+    auto prefilterMap = std::make_shared<Cubemap>(size, GL_RGB16F, GL_RGB, GL_FLOAT, true);
+
+    CubemapCapture capture;
+
+    auto cube = CreateCubemapCube();
+
+    Shader prefilterShader("assets/shaders/ibl/cubemap_capture.vert", "assets/shaders/ibl/prefilter.frag");
+
+    prefilterShader.Bind();
+    prefilterShader.SetInt("uEnvironmentMap", 0);
+    prefilterShader.SetMat4("uProjection", CaptureProjection);
+
+    environmentMap.Bind(0);
+
+    constexpr uint32_t maxMipLevels = 5;
+    for (uint32_t mip = 0; mip < maxMipLevels; ++mip) {
+        const uint32_t mipWidth = std::max(1u, size >> mip);
+        const uint32_t mipHeight = std::max(1u, size >> mip);
+        capture.Resize(mipWidth, mipHeight);
+
+        const float roughness = static_cast<float>(mip) / static_cast<float>(maxMipLevels - 1);
+        prefilterShader.SetFloat("uRoughness", roughness);
 
         for (uint32_t face = 0; face < 6; ++face) {
-            irradianceShader.SetMat4("uView", CaptureViews[face]);
+            prefilterShader.SetMat4("uView", CaptureViews[face]);
 
-            capture.AttachFace(*irradianceMap, face);
+            capture.AttachFace(*prefilterMap, face, mip);
+
             if (!capture.IsComplete()) {
-                LogError("Irradiance framebuffer is incomplete on face {}", face);
+                LogError("Prefilter framebuffer incomplete on mip {} face {}", mip, face);
             }
 
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             cube->Draw();
         }
-
-        return irradianceMap;
     }
 
-    std::shared_ptr<Cubemap> CreatePrefilteredEnvironmentCubemap(const Cubemap& environmentMap, uint32_t size) {
-        auto prefilterMap = std::make_shared<Cubemap>(size, GL_RGB16F, GL_RGB, GL_FLOAT, true);
-
-        CubemapCapture capture;
-
-        auto cube = CreateCubemapCube();
-
-        Shader prefilterShader("assets/shaders/ibl/cubemap_capture.vert", "assets/shaders/ibl/prefilter.frag");
-
-        prefilterShader.Bind();
-        prefilterShader.SetInt("uEnvironmentMap", 0);
-        prefilterShader.SetMat4("uProjection", CaptureProjection);
-
-        environmentMap.Bind(0);
-
-        constexpr uint32_t maxMipLevels = 5;
-        for (uint32_t mip = 0; mip < maxMipLevels; ++mip) {
-            const uint32_t mipWidth = std::max(1u, size >> mip);
-            const uint32_t mipHeight = std::max(1u, size >> mip);
-            capture.Resize(mipWidth, mipHeight);
-
-            const float roughness = static_cast<float>(mip) / static_cast<float>(maxMipLevels - 1);
-            prefilterShader.SetFloat("uRoughness", roughness);
-
-            for (uint32_t face = 0; face < 6; ++face) {
-                prefilterShader.SetMat4("uView", CaptureViews[face]);
-
-                capture.AttachFace(*prefilterMap, face, mip);
-
-                if (!capture.IsComplete()) {
-                    LogError("Prefilter framebuffer incomplete on mip {} face {}", mip, face);
-                }
-
-                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-                cube->Draw();
-            }
-        }
-
-        return prefilterMap;
-    }
+    return prefilterMap;
 }
 
 std::shared_ptr<Environment> CreateEnvironment(

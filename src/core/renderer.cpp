@@ -150,6 +150,8 @@ Renderer::Renderer(Window& window) : m_window(window) {
     m_deferredLightingShader->SetInt("uShadowMap", 7);
     m_deferredLightingShader->SetInt("uSSAO", 8);
 
+    m_reflectionProbeCaptureShader = std::make_shared<Shader>("assets/shaders/reflection_probe/capture.vert", "assets/shaders/reflection_probe/capture.frag");
+
     m_shadowMap = std::make_unique<ShadowMap>(1024, 1024);
     m_brdfLUT = CreateBRDFLUT(512);
 }
@@ -177,11 +179,24 @@ void Renderer::Render(
     renderPostProcessPass();
 }
 
+void Renderer::BakeReflectionProbe(const Scene& scene, ReflectionProbe& probe) {
+    const auto renderItems = buildRenderItems(scene);
+    const glm::mat4 lightSpaceMatrix = calculateLightSpaceMatrix(scene.GetSun());
+
+    renderShadowPass(renderItems, lightSpaceMatrix);
+
+    auto captured = captureReflectionProbe(scene, probe, 256);
+    probe.Irradiance = CreateIrradianceCubemap(*captured, 32);
+    probe.Prefilter = CreatePrefilteredEnvironmentCubemap(*captured, 128);
+}
+
 void Renderer::Destroy() {
+    m_debugProbeCapture.reset();
     m_ssaoNoiseTexture.reset();
     m_brdfLUT.reset();
     m_shadowMap.reset();
 
+    m_reflectionProbeCaptureShader.reset();
     m_deferredLightingShader.reset();
     m_postProcessShader.reset();
     m_geometryShader.reset();
@@ -247,6 +262,76 @@ void Renderer::resizeRenderTargets(uint32_t width, uint32_t height) {
     m_gBuffer->Resize(width, height);
 }
 
+void Renderer::uploadLocalLights(Shader& shader, const Scene& scene) {
+    const auto& pointLights = scene.GetPointLights();
+    const auto& spotLights = scene.GetSpotLights();
+
+    static constexpr size_t MAX_SPOT_LIGHTS = 16;
+    const size_t spotLightCount = std::min(spotLights.size(), MAX_SPOT_LIGHTS);
+
+    shader.SetInt("uSpotLightCount", static_cast<int>(spotLightCount));
+    for (size_t i = 0; i < spotLightCount; ++i) {
+        const auto& light = spotLights[i];
+        const std::string prefix = std::format("uSpotLights[{}].", i);
+
+        shader.SetFloat(prefix + "Intensity", light.Intensity);
+        shader.SetFloat(prefix + "Radius", light.Radius);
+        shader.SetColor3(prefix + "Tint", light.Tint);
+        shader.SetVec3(prefix + "Position", light.Position);
+        shader.SetVec3(prefix + "Direction", light.Direction);
+
+        const float innerCutoff = std::cos(glm::radians(light.InnerCone));
+        const float outerCutoff = std::cos(glm::radians(light.OuterCone));
+        shader.SetFloat(prefix + "InnerCutoff", innerCutoff);
+        shader.SetFloat(prefix + "OuterCutoff", outerCutoff);
+    }
+
+    static constexpr size_t MAX_POINT_LIGHTS = 16;
+    const size_t pointLightCount = std::min(pointLights.size(), MAX_POINT_LIGHTS);
+
+    shader.SetInt("uPointLightCount", static_cast<int>(pointLightCount));
+    for (size_t i = 0; i < pointLightCount; ++i) {
+        const auto& light = pointLights[i];
+        const std::string prefix = std::format("uPointLights[{}].", i);
+
+        shader.SetFloat(prefix + "Intensity", light.Intensity);
+        shader.SetColor3(prefix + "Tint", light.Tint);
+        shader.SetVec3(prefix + "Position", light.Position);
+        shader.SetFloat(prefix + "Radius", light.Radius);
+    }
+}
+
+void Renderer::uploadReflectionProbes(Shader& shader, const Scene& scene) {
+    const auto& probes = scene.GetReflectionProbes();
+
+    static constexpr size_t MAX_REFLECTION_PROBES = 8;
+    const size_t probeCount = std::min(probes.size(), MAX_REFLECTION_PROBES);
+
+    shader.SetInt("uReflectionProbeCount", static_cast<int>(probeCount));
+    for (size_t i = 0; i < MAX_REFLECTION_PROBES; ++i) {
+        const int irradianceUnit = 9 + static_cast<int>(i) * 2;
+        const int prefilterUnit = irradianceUnit + 1;
+        shader.SetInt(std::format("uProbeIrradianceMaps[{}]", i), irradianceUnit);
+        shader.SetInt(std::format("uProbePrefilterMaps[{}]", i), prefilterUnit);
+    }
+
+    for (size_t i = 0; i < probeCount; ++i) {
+        const auto& probe = probes[i];
+        const std::string prefix = std::format("uReflectionProbes[{}].", i);
+
+        shader.SetVec3(prefix + "Position", probe.Position);
+        shader.SetVec3(prefix + "BoxMin", probe.BoxMin);
+        shader.SetVec3(prefix + "BoxMax", probe.BoxMax);
+        shader.SetFloat(prefix + "Intensity", probe.Intensity);
+        shader.SetFloat(prefix + "BlendDistance", probe.BlendDistance);
+
+        const int irradianceUnit = 9 + static_cast<int>(i) * 2;
+        const int prefilterUnit = irradianceUnit + 1;
+        probe.Irradiance->Bind(irradianceUnit);
+        probe.Prefilter->Bind(prefilterUnit);
+    }
+}
+
 glm::mat4 Renderer::calculateLightSpaceMatrix(const DirectionalLight& sun) {
     const glm::vec3 lightDirection = glm::normalize(sun.Direction);
     const glm::vec3 sceneCenter{0.0f};
@@ -265,6 +350,168 @@ glm::mat4 Renderer::calculateLightSpaceMatrix(const DirectionalLight& sun) {
     );
 
     return lightProjection * lightView;
+}
+
+std::shared_ptr<Cubemap> Renderer::captureReflectionProbe(
+    const Scene& scene,
+    const ReflectionProbe& probe,
+    uint32_t size
+) {
+    const glm::mat4 captureProjection = glm::perspective(
+        glm::radians(90.0f),
+        1.0f,
+        0.1f, 100.0f
+    );
+
+    auto captured = std::make_shared<Cubemap>(
+        size,
+        GL_RGB16F, GL_RGB,
+        GL_FLOAT,
+        false
+    );
+
+    uint32_t captureFBO = 0;
+    uint32_t captureRBO = 0;
+
+    glGenFramebuffers(1, &captureFBO);
+    glGenRenderbuffers(1, &captureRBO);
+
+    GLint previousFramebuffer = 0;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFramebuffer);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    glDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+    glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+
+    glRenderbufferStorage(
+        GL_RENDERBUFFER,
+        GL_DEPTH_COMPONENT24,
+        size,
+        size
+    );
+
+    glFramebufferRenderbuffer(
+        GL_FRAMEBUFFER,
+        GL_DEPTH_ATTACHMENT,
+        GL_RENDERBUFFER,
+        captureRBO
+    );
+
+    std::array<glm::mat4, 6> captureViews {
+        glm::lookAt(
+            probe.Position,
+            probe.Position + glm::vec3(1, 0, 0),
+            glm::vec3(0, -1, 0)
+        ),
+        glm::lookAt(
+            probe.Position,
+            probe.Position + glm::vec3(-1, 0, 0),
+            glm::vec3(0, -1, 0)
+        ),
+        glm::lookAt(
+            probe.Position,
+            probe.Position + glm::vec3(0, 1, 0),
+            glm::vec3(0, 0, 1)
+        ),
+        glm::lookAt(
+            probe.Position,
+            probe.Position + glm::vec3(0, -1, 0),
+            glm::vec3(0, 0, -1)
+        ),
+        glm::lookAt(
+            probe.Position,
+            probe.Position + glm::vec3(0, 0, 1),
+            glm::vec3(0, -1, 0)
+        ),
+        glm::lookAt(
+            probe.Position,
+            probe.Position + glm::vec3(0, 0, -1),
+            glm::vec3(0, -1, 0)
+        )
+    };
+
+    GLint previousViewport[4];
+    glGetIntegerv(GL_VIEWPORT, previousViewport);
+
+    const auto renderItems = buildRenderItems(scene);
+
+    glEnable(GL_DEPTH_TEST);
+
+    const auto* environment = scene.GetEnvironment();
+    const auto& sun = scene.GetSun();
+
+    const glm::mat4 lightSpaceMatrix = calculateLightSpaceMatrix(sun);
+
+    m_pbrShader->Bind();
+    m_pbrShader->SetMat4("uProjection", captureProjection);
+    m_pbrShader->SetVec3("uCameraPosition", probe.Position);
+    m_pbrShader->SetMat4("uLightSpaceMatrix", lightSpaceMatrix);
+    m_pbrShader->SetFloat("uEnvironmentIntensity", environment ? environment->Intensity : 0.0f);
+
+    m_pbrShader->SetInt("uIrradianceMap", 4);
+    m_pbrShader->SetInt("uPrefilterMap", 5);
+    m_pbrShader->SetInt("uBRDFLUT", 6);
+    m_pbrShader->SetInt("uShadowMap", 7);
+
+    if (environment) {
+        environment->Irradiance->Bind(4);
+        environment->Prefilter->Bind(5);
+    }
+
+    m_brdfLUT->Bind(6);
+    m_shadowMap->BindTexture(7);
+
+    uploadLocalLights(*m_pbrShader, scene);
+    sun.Apply(*m_pbrShader);
+
+    for (uint32_t face = 0; face < 6; ++face) {
+        glFramebufferTexture2D(
+            GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_CUBE_MAP_POSITIVE_X + face,
+            captured->GetID(),
+            0
+        );
+
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            LogError("Reflection probe capture framebuffer is incomplete");
+        }
+
+        glViewport(0, 0, size, size);
+
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        if (environment) drawSkybox(*environment->Skybox, captureViews[face], captureProjection);
+
+        m_pbrShader->Bind();
+        m_pbrShader->SetMat4("uView", captureViews[face]);
+        for (const RenderItem& item : renderItems) {
+            const Material& material = *item.MaterialData;
+            if (material.Type != MaterialType::PBR || material.Alpha == AlphaMode::Blend) continue;
+
+            m_pbrShader->SetMat4("uModel", item.ModelMatrix);
+            material.ApplyPBR(*m_pbrShader);
+            item.Geometry->Draw();
+        }
+    }
+
+    glBindTexture(GL_TEXTURE_CUBE_MAP, captured->GetID());
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previousFramebuffer));
+
+    glViewport(
+        previousViewport[0],
+        previousViewport[1],
+        previousViewport[2],
+        previousViewport[3]
+    );
+
+    glDeleteRenderbuffers(1, &captureRBO);
+    glDeleteFramebuffers(1, &captureFBO);
+    return captured;
 }
 
 void Renderer::renderShadowPass(const std::vector<RenderItem>& items, const glm::mat4& lightSpaceMatrix) {
@@ -353,8 +600,6 @@ void Renderer::renderDeferredLightingPass(
 ) {
     const auto& properties = m_window.GetProperties();
     const auto& sun = scene.GetSun();
-    const auto& pointLights = scene.GetPointLights();
-    const auto& spotLights = scene.GetSpotLights();
     const auto& environment = scene.GetEnvironment();
 
     m_hdrFramebuffer->Bind();
@@ -375,9 +620,8 @@ void Renderer::renderDeferredLightingPass(
 
     m_hdrFramebuffer->Bind();
 
+    glEnable(GL_DEPTH_TEST);
     if (environment) {
-        glEnable(GL_DEPTH_TEST);
-
         drawSkybox(*environment->Skybox, camera);
     }
 
@@ -402,39 +646,8 @@ void Renderer::renderDeferredLightingPass(
     m_deferredLightingShader->SetMat4("uLightSpaceMatrix", lightSpaceMatrix);
     m_deferredLightingShader->SetFloat("uEnvironmentIntensity", environment ? environment->Intensity : 0.0f);
 
-    static constexpr size_t MAX_SPOT_LIGHTS = 16;
-    const size_t spotLightCount = std::min(spotLights.size(), MAX_SPOT_LIGHTS);
-
-    m_deferredLightingShader->SetInt("uSpotLightCount", static_cast<int>(spotLightCount));
-    for (size_t i = 0; i < spotLightCount; ++i) {
-        const auto& light = spotLights[i];
-        const std::string prefix = std::format("uSpotLights[{}].", i);
-
-        m_deferredLightingShader->SetFloat(prefix + "Intensity", light.Intensity);
-        m_deferredLightingShader->SetFloat(prefix + "Radius", light.Radius);
-        m_deferredLightingShader->SetColor3(prefix + "Tint", light.Tint);
-        m_deferredLightingShader->SetVec3(prefix + "Position", light.Position);
-        m_deferredLightingShader->SetVec3(prefix + "Direction", light.Direction);
-
-        const float innerCutoff = std::cos(glm::radians(light.InnerCone));
-        const float outerCutoff = std::cos(glm::radians(light.OuterCone));
-        m_deferredLightingShader->SetFloat(prefix + "InnerCutoff", innerCutoff);
-        m_deferredLightingShader->SetFloat(prefix + "OuterCutoff", outerCutoff);
-    }
-
-    static constexpr size_t MAX_POINT_LIGHTS = 16;
-    const size_t pointLightCount = std::min(pointLights.size(), MAX_POINT_LIGHTS);
-
-    m_deferredLightingShader->SetInt("uPointLightCount", static_cast<int>(pointLightCount));
-    for (size_t i = 0; i < pointLightCount; ++i) {
-        const auto& light = pointLights[i];
-        const std::string prefix = std::format("uPointLights[{}].", i);
-
-        m_deferredLightingShader->SetFloat(prefix + "Intensity", light.Intensity);
-        m_deferredLightingShader->SetColor3(prefix + "Tint", light.Tint);
-        m_deferredLightingShader->SetVec3(prefix + "Position", light.Position);
-        m_deferredLightingShader->SetFloat(prefix + "Radius", light.Radius);
-    }
+    uploadReflectionProbes(*m_deferredLightingShader, scene);
+    uploadLocalLights(*m_deferredLightingShader, scene);
 
     sun.Apply(*m_deferredLightingShader);
 
@@ -517,6 +730,7 @@ void Renderer::renderTransparentPass(
     m_brdfLUT->Bind(6);
     m_shadowMap->BindTexture(7);
 
+    uploadLocalLights(*m_pbrShader, scene);
     sun.Apply(*m_pbrShader);
 
     m_unlitShader->Bind();
@@ -617,14 +831,18 @@ std::vector<Renderer::RenderItem> Renderer::buildRenderItems(const Scene& scene)
 }
 
 void Renderer::drawSkybox(const Cubemap& cubemap, const Camera& camera) {
+    drawSkybox(cubemap, camera.GetView(), camera.GetProjection(m_window.GetAspectRatio()));
+}
+
+void Renderer::drawSkybox(const Cubemap& cubemap, const glm::mat4& view, const glm::mat4& projection) {
     glDepthFunc(GL_LEQUAL);
 
     const GLboolean cullingEnabled = glIsEnabled(GL_CULL_FACE);
     glDisable(GL_CULL_FACE);
 
     m_skyboxShader->Bind();
-    m_skyboxShader->SetMat4("uView", camera.GetView());
-    m_skyboxShader->SetMat4("uProjection", camera.GetProjection(m_window.GetAspectRatio()));
+    m_skyboxShader->SetMat4("uView", view);
+    m_skyboxShader->SetMat4("uProjection", projection);
 
     cubemap.Bind(0);
     m_skyboxMesh->Draw();

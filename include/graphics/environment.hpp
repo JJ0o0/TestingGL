@@ -14,6 +14,16 @@ struct Environment {
     float Intensity = 1.0f;
 };
 
+std::shared_ptr<Cubemap> CreateIrradianceCubemap(
+    const Cubemap& source,
+    uint32_t size = 32
+);
+
+std::shared_ptr<Cubemap> CreatePrefilteredEnvironmentCubemap(
+    const Cubemap& source,
+    uint32_t size = 128
+);
+
 std::shared_ptr<Environment> CreateEnvironment(
     const Texture& equirectangularHDR,
     uint32_t environmentSize = 512,

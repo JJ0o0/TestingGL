@@ -34,8 +34,14 @@ void Scene::AddSpotLight(const SpotLight& light) {
     m_spotLights.push_back(light);
 }
 
+ReflectionProbe& Scene::AddReflectionProbe(ReflectionProbe probe) {
+    m_reflectionProbes.push_back(std::move(probe));
+    return m_reflectionProbes.back();
+}
+
 void Scene::Clear() {
     m_environment.reset();
+    m_reflectionProbes.clear();
     m_spotLights.clear();
     m_pointLights.clear();
     m_gameObjects.clear();

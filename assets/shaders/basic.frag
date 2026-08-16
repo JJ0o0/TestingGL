@@ -59,6 +59,10 @@ void main() {
     vec4 baseColorSample = texture(uBaseColorTexture, TexCoord);
     vec4 baseColor = baseColorSample * uMaterial.BaseColor;
 
+    if (uMaterial.AlphaMode == ALPHA_MODE_MASK && baseColor.a < uMaterial.AlphaCutoff) {
+        discard;
+    }
+
     vec3 arm = texture(uARMTexture, TexCoord).rgb;
 
     float ao = mix(1.0, arm.r, uMaterial.OcclusionStrength);
@@ -115,6 +119,32 @@ void main() {
     vec3 L = normalize(-uDirectionalLight.Direction);
     float shadow = CalculateShadow(FragPos, geometryNormal, L);
 
-    vec3 result = ibl + directional * (1.0 - shadow) + emissive;
+    vec3 pointLighting = vec3(0.0);
+    for (int i = 0; i < uPointLightCount; ++i) {
+        pointLighting += CalculatePointLight(
+            uPointLights[i],
+            FragPos,
+            baseColor.rgb,
+            metallic,
+            roughness,
+            N,
+            V
+        );
+    }
+
+    vec3 spotLighting = vec3(0.0);
+    for (int i = 0; i < uSpotLightCount; ++i) {
+        spotLighting += CalculateSpotLight(
+            uSpotLights[i],
+            FragPos,
+            baseColor.rgb,
+            metallic,
+            roughness,
+            N,
+            V
+        );
+    }
+
+    vec3 result = ibl + directional * (1.0 - shadow) + pointLighting + spotLighting + emissive;
     FragColor = vec4(result, baseColor.a);
 }
