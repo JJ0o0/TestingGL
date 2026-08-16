@@ -10,6 +10,7 @@
 
 #include <unordered_map>
 #include <utility>
+#include <cstdint>
 #include <vector>
 #include <string>
 #include <memory>
@@ -43,6 +44,9 @@ class Scene {
         std::vector<ReflectionProbe>& GetReflectionProbes() { return m_reflectionProbes; }
         const std::vector<ReflectionProbe>& GetReflectionProbes() const { return m_reflectionProbes; }
 
+        uint64_t GetCaptureRevision() const { return m_captureRevision; }
+        void InvalidateReflectionProbes();
+
         void SetEnvironment(std::shared_ptr<Environment> environment) { m_environment = std::move(environment);}
         Environment* GetEnvironment() { return m_environment.get(); }
         const Environment* GetEnvironment() const { return m_environment.get(); }
@@ -58,5 +62,6 @@ class Scene {
         std::vector<PointLight> m_pointLights;
         std::vector<SpotLight> m_spotLights;
 
+        uint64_t m_captureRevision = 1;
         std::vector<ReflectionProbe> m_reflectionProbes;
 };

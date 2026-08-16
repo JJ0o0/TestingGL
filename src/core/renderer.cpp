@@ -179,6 +179,16 @@ void Renderer::Render(
     renderPostProcessPass();
 }
 
+void Renderer::UpdateReflectionProbes(Scene& scene) {
+    const uint64_t sceneRevision = scene.GetCaptureRevision();
+
+    for (auto& probe : scene.GetReflectionProbes()) {
+        if (probe.LastBakeRevision == sceneRevision) continue;
+        BakeReflectionProbe(scene, probe);
+        break;
+    }
+}
+
 void Renderer::BakeReflectionProbe(const Scene& scene, ReflectionProbe& probe) {
     const auto renderItems = buildRenderItems(scene);
     const glm::mat4 lightSpaceMatrix = calculateLightSpaceMatrix(scene.GetSun());
@@ -188,6 +198,8 @@ void Renderer::BakeReflectionProbe(const Scene& scene, ReflectionProbe& probe) {
     auto captured = captureReflectionProbe(scene, probe, 256);
     probe.Irradiance = CreateIrradianceCubemap(*captured, 32);
     probe.Prefilter = CreatePrefilteredEnvironmentCubemap(*captured, 128);
+
+    probe.LastBakeRevision = scene.GetCaptureRevision();
 }
 
 void Renderer::Destroy() {

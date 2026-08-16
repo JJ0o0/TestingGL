@@ -26,6 +26,12 @@ void Game::Initialize() {
 
                     break;
                 }
+                case GLFW_KEY_F:
+                    m_scene.GetSun().Intensity += 1.0f;
+                    m_scene.InvalidateReflectionProbes();
+
+                    LogInfo("Scene capture revision: {}", m_scene.GetCaptureRevision());
+                    break;
                 case GLFW_KEY_F8:
                     Quit();
                     break;
@@ -55,6 +61,7 @@ void Game::Update(float deltatime) {
 }
 
 void Game::Render() {
+    m_renderer.UpdateReflectionProbes(m_scene);
     m_renderer.Render(m_scene, m_camera, m_clearColor);
 }
 

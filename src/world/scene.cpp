@@ -39,6 +39,10 @@ ReflectionProbe& Scene::AddReflectionProbe(ReflectionProbe probe) {
     return m_reflectionProbes.back();
 }
 
+void Scene::InvalidateReflectionProbes() {
+    ++m_captureRevision;
+}
+
 void Scene::Clear() {
     m_environment.reset();
     m_reflectionProbes.clear();

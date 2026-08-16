@@ -34,6 +34,7 @@ class Renderer {
             const Color& clearColor
         );
 
+        void UpdateReflectionProbes(Scene& scene);
         void BakeReflectionProbe(const Scene& scene, ReflectionProbe& probe);
 
         void Destroy();

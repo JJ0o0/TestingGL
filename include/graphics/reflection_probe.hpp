@@ -2,6 +2,7 @@
 
 #include <graphics/cubemap.hpp>
 #include <glm/vec3.hpp>
+#include <cstdint>
 #include <memory>
 
 struct ReflectionProbe {
@@ -15,4 +16,6 @@ struct ReflectionProbe {
 
     float Intensity = 1.0f;
     float BlendDistance = 0.5f;
+
+    uint64_t LastBakeRevision = 0;
 };
